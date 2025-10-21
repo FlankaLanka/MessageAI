@@ -1,0 +1,716 @@
+import React, { useEffect, useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  FlatList, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  Platform,
+  Alert,
+  Dimensions,
+  Image,
+  Modal
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useStore } from '../../store/useStore';
+import { Message, User, Chat } from '../../types';
+import { MessageService } from '../../services/messages';
+import { UserService } from '../../services/users';
+import { GroupService } from '../../services/groups';
+import { useNetworkState } from '../../services/network';
+import { presenceService, TypingData } from '../../services/presence';
+import OnlineIndicator from '../../components/OnlineIndicator';
+import TypingIndicator from '../../components/TypingIndicator';
+import ProfileModal from '../../components/ProfileModal';
+import GroupParticipantsModal from '../../components/GroupParticipantsModal';
+import AddMembersModal from '../../components/AddMembersModal';
+import ReadReceipt from '../../components/ReadReceipt';
+import { ReadReceiptService, UserReadStatus } from '../../services/readReceipts';
+
+interface SimpleChatScreenProps {
+  chatId: string;
+  onNavigateBack: () => void;
+  onNavigateToUserProfile: (userId: string) => void;
+}
+
+export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToUserProfile }: SimpleChatScreenProps) {
+  const { user, messages, setMessages, addMessage, updateMessage, updateChatLastMessage } = useStore();
+  const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [chat, setChat] = useState<Chat | null>(null);
+  const [otherUser, setOtherUser] = useState<User | null>(null);
+  const [groupParticipants, setGroupParticipants] = useState<User[]>([]);
+  const [isOnline, setIsOnline] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<TypingData[]>([]);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [readStatus, setReadStatus] = useState<Record<string, UserReadStatus>>({});
+  const networkState = useNetworkState();
+
+  // Get screen dimensions for responsive design
+  const { height: screenHeight } = Dimensions.get('window');
+  const isSmallScreen = screenHeight < 700;
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Set up real-time listener for messages with offline support
+    const unsubscribe = MessageService.onMessagesUpdate(chatId, (newMessages) => {
+      setMessages(newMessages);
+      setIsLoading(false);
+      
+      // Mark messages as read when user views the chat
+      markMessagesAsRead(newMessages);
+    });
+
+    // Set up typing indicators subscription
+    const unsubscribeTyping = presenceService.subscribeToTypingIndicators(chatId, (typingData) => {
+      setTypingUsers(typingData);
+    });
+
+    // Set up read status subscription
+    const unsubscribeReadStatus = ReadReceiptService.subscribeToReadStatus(chatId, (newReadStatus: Record<string, UserReadStatus>) => {
+      setReadStatus(newReadStatus);
+    });
+
+    // Start read receipt sync service
+    const stopSync = ReadReceiptService.startAutoSync();
+
+    // Load chat information
+    loadChatInfo();
+
+    return () => {
+      unsubscribe();
+      unsubscribeTyping();
+      unsubscribeReadStatus();
+      stopSync();
+    };
+  }, [chatId, user, setMessages]);
+
+  const markMessagesAsRead = async (messages: Message[]) => {
+    if (!user || messages.length === 0) return;
+    
+    try {
+      // Get the latest message from other users (in inverted FlatList, newest is at index 0)
+      const latestMessage = messages
+        .filter(msg => msg.senderId !== user.uid && msg.status !== 'sending' && msg.status !== 'failed')
+        [0]; // Get the first message (newest) from the inverted list
+      
+      if (latestMessage) {
+        // Mark the latest message as read using the new read receipt system
+        await ReadReceiptService.markMessagesAsRead(
+          chatId,
+          latestMessage.id,
+          user.uid,
+          user.displayName,
+          user.photoURL
+        );
+        
+        console.log(`Marked latest message as read: ${latestMessage.id}`);
+      }
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
+
+  const loadChatInfo = async () => {
+    try {
+      // Load chat details
+      const chatData = await MessageService.getUserChats(user!.uid);
+      const currentChat = chatData.find(c => c.id === chatId);
+      
+      if (currentChat) {
+        setChat(currentChat);
+        
+        if (currentChat.type === 'direct') {
+          // For direct chat, find the other user
+          const otherUserId = currentChat.participants.find(id => id !== user!.uid);
+          if (otherUserId) {
+            const otherUserData = await UserService.getUserProfile(otherUserId);
+            setOtherUser(otherUserData);
+            
+            // Subscribe to other user's presence
+            if (otherUserData) {
+              const unsubscribe = presenceService.subscribeToUserPresence(otherUserId, (presence) => {
+                setIsOnline(presence.state === 'online');
+              });
+              
+              // Store unsubscribe function for cleanup
+              return unsubscribe;
+            }
+          }
+        } else if (currentChat.type === 'group') {
+          // For group chat, load all participants
+          const participants = await UserService.getUsersByIds(currentChat.participants);
+          setGroupParticipants(participants);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading chat info:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !user) return;
+
+    const messageText = newMessage.trim();
+    setNewMessage('');
+
+    // Stop typing indicator when sending message
+    await presenceService.setTypingStatus(chatId, user.uid, user.displayName, false);
+
+    try {
+      const sentMessage = await MessageService.sendMessage(
+        chatId, 
+        user.uid, 
+        messageText, 
+        user.displayName, 
+        user.photoURL
+      );
+      
+      // Update chat list immediately with the new message
+      updateChatLastMessage(chatId, sentMessage);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message');
+    }
+  };
+
+  const handleTextChange = async (text: string) => {
+    setNewMessage(text);
+    
+    if (!user) return;
+    
+    // Set typing indicator when user starts typing
+    if (text.trim().length > 0) {
+      await presenceService.setTypingStatus(chatId, user.uid, user.displayName, true);
+    } else {
+      // Stop typing when text is empty
+      await presenceService.setTypingStatus(chatId, user.uid, user.displayName, false);
+    }
+  };
+
+  const renderHeader = () => {
+    if (!chat) return null;
+
+    if (chat.type === 'direct' && otherUser) {
+      return (
+        <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
+          <TouchableOpacity onPress={onNavigateBack} style={[styles.backButton, isSmallScreen && styles.backButtonSmall]}>
+            <Text style={[styles.backButtonText, isSmallScreen && styles.backButtonTextSmall]}>← Back</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.profileSection}
+            onPress={() => setShowProfileModal(true)}
+          >
+            <View style={styles.profilePictureContainer}>
+              {otherUser.photoURL ? (
+                <Image source={{ uri: otherUser.photoURL }} style={styles.profilePicture} />
+              ) : (
+                <View style={styles.placeholderAvatar}>
+                  <Text style={styles.placeholderText}>
+                    {otherUser.firstName?.charAt(0) || otherUser.lastName?.charAt(0) || '?'}
+                  </Text>
+                </View>
+              )}
+              <OnlineIndicator isOnline={isOnline} size={12} showOffline={true} />
+            </View>
+            
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, isSmallScreen && styles.profileNameSmall]}>
+                {otherUser.displayName || `${otherUser.firstName} ${otherUser.lastName}`}
+              </Text>
+              <Text style={[styles.profileStatus, isSmallScreen && styles.profileStatusSmall]}>
+                {isOnline ? 'Online' : 'Offline'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          
+          {!networkState.isConnected && (
+            <View style={styles.offlineIndicator}>
+              <Text style={styles.offlineText}>Offline</Text>
+            </View>
+          )}
+        </View>
+      );
+    } else if (chat.type === 'group') {
+      return (
+        <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
+          <TouchableOpacity onPress={onNavigateBack} style={[styles.backButton, isSmallScreen && styles.backButtonSmall]}>
+            <Text style={[styles.backButtonText, isSmallScreen && styles.backButtonTextSmall]}>← Back</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.profileSection}
+            onPress={() => setShowGroupModal(true)}
+          >
+            <View style={styles.groupProfileContainer}>
+              {groupParticipants.slice(0, 3).map((participant, index) => (
+                <View key={participant.uid} style={[styles.groupProfilePicture, { zIndex: 3 - index }]}>
+                  {participant.photoURL ? (
+                    <Image source={{ uri: participant.photoURL }} style={styles.groupProfilePicture} />
+                  ) : (
+                    <View style={[styles.groupPlaceholderAvatar, { backgroundColor: `hsl(${participant.uid.charCodeAt(0) * 137.5 % 360}, 70%, 50%)` }]}>
+                      <Text style={styles.groupPlaceholderText}>
+                        {participant.firstName?.charAt(0) || participant.lastName?.charAt(0) || '?'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+              {groupParticipants.length > 3 && (
+                <View style={styles.moreIndicator}>
+                  <Text style={styles.moreIndicatorText}>+{groupParticipants.length - 3}</Text>
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, isSmallScreen && styles.profileNameSmall]}>
+                {chat.name || 'Group Chat'}
+              </Text>
+              <Text style={[styles.profileStatus, isSmallScreen && styles.profileStatusSmall]}>
+                {groupParticipants.length} members
+              </Text>
+            </View>
+          </TouchableOpacity>
+          
+          {/* Add Members Button - Admin Only */}
+          {user && chat.adminIds?.includes(user.uid) && (
+            <TouchableOpacity 
+              style={[styles.addMembersButton, isSmallScreen && styles.addMembersButtonSmall]}
+              onPress={() => setShowAddMembersModal(true)}
+            >
+              <Text style={[styles.addMembersButtonText, isSmallScreen && styles.addMembersButtonTextSmall]}>+</Text>
+            </TouchableOpacity>
+          )}
+          
+          {!networkState.isConnected && (
+            <View style={styles.offlineIndicator}>
+              <Text style={styles.offlineText}>Offline</Text>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  const renderMessage = ({ item }: { item: Message }) => {
+    const isOwnMessage = item.senderId === user?.uid;
+    const isGroupChat = chat?.type === 'group';
+    const senderName = item.senderName || 'Unknown User';
+    
+    // Get read receipts for this message
+    const readReceipts = ReadReceiptService.getReadReceiptsForMessage(
+      item.id,
+      readStatus,
+      user?.uid || '',
+      messages,
+      isGroupChat
+    );
+    
+    // Debug: Log read receipts for group chats
+    if (isGroupChat && readReceipts.length > 0) {
+      console.log(`Group chat - Message ${item.id} from ${senderName} has ${readReceipts.length} read receipts:`, 
+        readReceipts.map(r => r.userName)
+      );
+    }
+    
+    return (
+      <View style={[
+        styles.messageContainer,
+        isOwnMessage ? styles.ownMessage : styles.otherMessage
+      ]}>
+        {isGroupChat && !isOwnMessage && (
+          <Text style={styles.senderName}>{senderName}</Text>
+        )}
+        <View style={[
+          styles.messageBubble,
+          isOwnMessage ? styles.ownBubble : styles.otherBubble
+        ]}>
+          <Text style={[
+            styles.messageText,
+            isOwnMessage ? styles.ownText : styles.otherText
+          ]}>
+            {item.text}
+          </Text>
+          <Text style={styles.timestamp}>
+            {new Date(item.timestamp).toLocaleTimeString()}
+          </Text>
+        </View>
+        
+        {/* Facebook Messenger-style Read Receipt with profile icons */}
+        <ReadReceipt 
+          readReceipts={readReceipts} 
+          isOwnMessage={isOwnMessage}
+          maxAvatars={isGroupChat ? 5 : 3}
+        />
+      </View>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Loading messages...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {renderHeader()}
+
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          style={styles.messagesList}
+          inverted
+        />
+
+        <TypingIndicator 
+          typingUsers={typingUsers} 
+          isVisible={typingUsers.length > 0} 
+        />
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.textInput}
+            value={newMessage}
+            onChangeText={handleTextChange}
+            placeholder="Type a message..."
+            multiline
+            maxLength={1000}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
+            onPress={handleSendMessage}
+            disabled={!newMessage.trim()}
+          >
+            <Text style={styles.sendButtonText}>Send</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Profile Modal for Direct Chat */}
+      {otherUser && (
+        <ProfileModal
+          visible={showProfileModal}
+          user={otherUser}
+          isOnline={isOnline}
+          onClose={() => setShowProfileModal(false)}
+          onViewFullProfile={() => {
+            setShowProfileModal(false);
+            onNavigateToUserProfile(otherUser.uid);
+          }}
+          onMessage={() => setShowProfileModal(false)}
+        />
+      )}
+
+      {/* Group Participants Modal */}
+      {chat?.type === 'group' && (
+        <GroupParticipantsModal
+          visible={showGroupModal}
+          participants={groupParticipants}
+          admins={chat.adminIds || []}
+          currentUserId={user?.uid || ''}
+          onClose={() => setShowGroupModal(false)}
+          onUserPress={(participant) => {
+            setShowGroupModal(false);
+            onNavigateToUserProfile(participant.uid);
+          }}
+        />
+      )}
+
+      {/* Add Members Modal */}
+      {chat?.type === 'group' && (
+        <AddMembersModal
+          visible={showAddMembersModal}
+          groupId={chat.id}
+          currentUserId={user?.uid || ''}
+          existingParticipants={chat.participants}
+          onClose={() => setShowAddMembersModal(false)}
+          onMembersAdded={(newMembers) => {
+            // Update the group participants list
+            setGroupParticipants(prev => [...prev, ...newMembers]);
+            setShowAddMembersModal(false);
+          }}
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    minHeight: 50,
+  },
+  headerSmall: {
+    paddingVertical: 8,
+    minHeight: 44,
+  },
+  backButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  backButtonSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    minHeight: 28,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  backButtonTextSmall: {
+    fontSize: 14,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 16,
+  },
+  headerTitleSmall: {
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  messagesList: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  messageContainer: {
+    marginVertical: 4,
+  },
+  ownMessage: {
+    alignItems: 'flex-end',
+  },
+  otherMessage: {
+    alignItems: 'flex-start',
+  },
+  senderName: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+  },
+  ownBubble: {
+    backgroundColor: '#007AFF',
+  },
+  otherBubble: {
+    backgroundColor: '#E5E5EA',
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  ownText: {
+    color: '#fff',
+  },
+  otherText: {
+    color: '#000',
+  },
+  timestamp: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  textInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 12,
+    maxHeight: 100,
+  },
+  sendButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  sendButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  offlineIndicator: {
+    backgroundColor: '#ff6b6b',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  offlineText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginLeft: 16,
+  },
+  profilePictureContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  profilePicture: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  placeholderAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  profileNameSmall: {
+    fontSize: 14,
+  },
+  profileStatus: {
+    fontSize: 12,
+    color: '#666',
+  },
+  profileStatusSmall: {
+    fontSize: 10,
+  },
+  groupProfileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  groupProfilePicture: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginLeft: -8,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  groupPlaceholderAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: -8,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  groupPlaceholderText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  moreIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: -8,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  moreIndicatorText: {
+    fontSize: 10,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  addMembersButton: {
+    backgroundColor: '#007AFF',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  addMembersButtonSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  addMembersButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  addMembersButtonTextSmall: {
+    fontSize: 16,
+  },
+});
