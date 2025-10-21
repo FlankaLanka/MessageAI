@@ -1,6 +1,7 @@
 import { ref, set, onValue, off, serverTimestamp } from 'firebase/database';
 import { database } from './firebase';
 import { AppState, AppStateStatus } from 'react-native';
+import { networkService } from './network';
 
 export interface PresenceData {
   state: 'online' | 'offline';
@@ -20,15 +21,24 @@ class PresenceService {
   private listeners: Map<string, (presence: PresenceData) => void> = new Map();
   private typingListeners: Map<string, (typingData: TypingData[]) => void> = new Map();
   private appStateSubscription: any = null;
+  private networkSubscription: any = null;
   private typingTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private appState: AppStateStatus = 'active';
 
   constructor() {
     this.setupAppStateListener();
+    this.setupNetworkListener();
   }
 
-  // Set user online
+  // Set user online (only if network is available and app is active)
   async setUserOnline(uid: string): Promise<void> {
     try {
+      // Check if we should actually be online
+      if (!this.shouldBeOnline()) {
+        console.log('Cannot set user online: network or app state not suitable');
+        return;
+      }
+
       this.userUid = uid;
       this.isOnline = true;
       
@@ -41,7 +51,7 @@ class PresenceService {
       console.log('User set to online:', uid);
     } catch (error) {
       console.error('Error setting user online:', error);
-      throw error;
+      // Don't throw error - network issues shouldn't crash the app
     }
   }
 
@@ -144,6 +154,17 @@ class PresenceService {
     }
   }
 
+  // Get current user's online status (considering network and app state)
+  getCurrentUserOnlineStatus(): boolean {
+    return this.isOnline && this.shouldBeOnline();
+  }
+
+  // Manually trigger presence update (useful for debugging)
+  async forceUpdatePresence(): Promise<void> {
+    console.log('🔄 Force updating presence status');
+    await this.updatePresenceStatus();
+  }
+
   // Set typing status for a user in a chat
   async setTypingStatus(chatId: string, userId: string, userName: string, isTyping: boolean): Promise<void> {
     try {
@@ -233,21 +254,70 @@ class PresenceService {
   // Setup app state listener
   private setupAppStateListener(): void {
     this.appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (this.userUid) {
-        if (nextAppState === 'active' && !this.isOnline) {
-          this.setUserOnline(this.userUid);
-        } else if (nextAppState === 'background' && this.isOnline) {
-          this.setUserOffline(this.userUid);
-        }
-      }
+      this.appState = nextAppState;
+      this.updatePresenceStatus();
     });
+  }
+
+  // Setup network listener
+  private setupNetworkListener(): void {
+    this.networkSubscription = networkService.subscribe((networkState) => {
+      console.log('🌐 Network state changed:', {
+        isConnected: networkState.isConnected,
+        isInternetReachable: networkState.isInternetReachable,
+        appState: this.appState,
+        userUid: this.userUid,
+        isOnline: this.isOnline
+      });
+      this.updatePresenceStatus();
+    });
+  }
+
+  // Check if user should be online based on app state and network
+  private shouldBeOnline(): boolean {
+    const networkState = networkService.getCurrentState();
+    return this.appState === 'active' && 
+           networkState.isConnected && 
+           (networkState.isInternetReachable === true || networkState.isInternetReachable === null);
+  }
+
+  // Update presence status based on current app state and network
+  private async updatePresenceStatus(): Promise<void> {
+    if (!this.userUid) {
+      console.log('⚠️ Cannot update presence: no user UID');
+      return;
+    }
+
+    const shouldBeOnline = this.shouldBeOnline();
+    const networkState = networkService.getCurrentState();
+    
+    console.log('🔄 Updating presence status:', {
+      shouldBeOnline,
+      isOnline: this.isOnline,
+      appState: this.appState,
+      networkConnected: networkState.isConnected,
+      internetReachable: networkState.isInternetReachable
+    });
+    
+    if (shouldBeOnline && !this.isOnline) {
+      // Should be online but currently offline
+      console.log('📱 Setting user online');
+      await this.setUserOnline(this.userUid);
+    } else if (!shouldBeOnline && this.isOnline) {
+      // Should be offline but currently online
+      console.log('📱 Setting user offline');
+      await this.setUserOffline(this.userUid);
+    } else {
+      console.log('📱 No presence change needed');
+    }
   }
 
   // Initialize presence for user
   async initialize(uid: string): Promise<void> {
     try {
       this.userUid = uid;
-      await this.setUserOnline(uid);
+      // Use updatePresenceStatus to check network and app state
+      await this.updatePresenceStatus();
     } catch (error) {
       console.error('Error initializing presence:', error);
       throw error;
@@ -262,6 +332,10 @@ class PresenceService {
     
     if (this.appStateSubscription) {
       this.appStateSubscription.remove();
+    }
+    
+    if (this.networkSubscription) {
+      this.networkSubscription();
     }
     
     // Clear all typing timeouts

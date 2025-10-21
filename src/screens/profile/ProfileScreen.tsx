@@ -16,6 +16,8 @@ import { useStore } from '../../store/useStore';
 import { UserService } from '../../services/users';
 import { MediaService } from '../../services/media';
 import { AuthService } from '../../services/auth';
+import { notificationService } from '../../services/notifications';
+import { presenceService } from '../../services/presence';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isSmallScreen = screenHeight < 700;
@@ -25,6 +27,7 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isPinging, setIsPinging] = useState(false);
   
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -384,6 +387,49 @@ export default function ProfileScreen() {
     }
   };
 
+  const handlePingNotification = async () => {
+    try {
+      setIsPinging(true);
+      await notificationService.sendPingNotification();
+      Alert.alert('Ping Sent!', 'You should receive a test notification shortly.');
+    } catch (error) {
+      console.error('Error sending ping notification:', error);
+      Alert.alert('Error', 'Failed to send ping notification. Please check your notification permissions.');
+    } finally {
+      setIsPinging(false);
+    }
+  };
+
+  const handlePresenceUpdate = async () => {
+    try {
+      await presenceService.forceUpdatePresence();
+      Alert.alert('Presence Updated!', 'Your presence status has been manually updated. Check the console for details.');
+    } catch (error) {
+      console.error('Error updating presence:', error);
+      Alert.alert('Error', 'Failed to update presence status.');
+    }
+  };
+
+  const handleTestLocalNotification = async () => {
+    try {
+      setIsPinging(true);
+      
+      // Use the simplified local test function
+      const success = await notificationService.testLocalNotification();
+      
+      if (success) {
+        Alert.alert('Test Sent!', 'You should receive a local notification shortly. This works in Expo Go!');
+      } else {
+        Alert.alert('Test Failed', 'Failed to send local notification. Check the console for error details.');
+      }
+    } catch (error) {
+      console.error('Error sending local test notification:', error);
+      Alert.alert('Error', 'Failed to send local test notification. Check the console for details.');
+    } finally {
+      setIsPinging(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -514,6 +560,36 @@ export default function ProfileScreen() {
           >
             <Text style={styles.saveButtonText}>
               {isSaving ? 'Saving...' : 'Save Changes'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.pingButton, isPinging && styles.pingButtonDisabled]}
+            onPress={handlePingNotification}
+            disabled={isPinging || isSaving}
+          >
+            <Text style={styles.pingButtonText}>
+              {isPinging ? 'Sending...' : '🔔 Test Notification'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.pingButton, isPinging && styles.pingButtonDisabled]}
+            onPress={handleTestLocalNotification}
+            disabled={isPinging || isSaving}
+          >
+            <Text style={styles.pingButtonText}>
+              {isPinging ? 'Sending...' : '📱 Local Test'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.pingButton}
+            onPress={handlePresenceUpdate}
+            disabled={isSaving}
+          >
+            <Text style={styles.pingButtonText}>
+              🔄 Update Presence
             </Text>
           </TouchableOpacity>
 
@@ -687,6 +763,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#a0c8ff',
   },
   saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pingButton: {
+    backgroundColor: '#34C759',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  pingButtonDisabled: {
+    backgroundColor: '#a8d5a8',
+  },
+  pingButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

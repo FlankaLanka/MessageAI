@@ -23,18 +23,17 @@ MessageAI follows a client-server architecture with Firebase as the backend and 
 - **Benefits**: Simple API, good performance, easy testing
 
 ### 4. Platform-Specific Storage
-- **Mobile**: SQLite for offline message caching and queue
-- **Web**: localStorage for offline message caching and queue
-- **Pattern**: Local-first with sync to Firebase, platform-agnostic API
-- **Benefits**: Works offline, fast local queries, data persistence, cross-platform compatibility
+- **Storage**: SQLite for offline message caching and queue
+- **Pattern**: Local-first with sync to Firebase, Expo Go compatible
+- **Benefits**: Works offline, fast local queries, data persistence, optimized for Expo Go
 
-### 5. Cross-Platform UI Compatibility
-- **Critical**: All UI components must work on both web and mobile
-- **Alerts**: React Native Alert.alert() does NOT work on web - use crossPlatformAlert utility
-- **Gestures**: Swipe gestures don't work on web - use hover/right-click alternatives
-- **Storage**: Different storage systems for web (localStorage) vs mobile (SQLite)
-- **Pattern**: Platform detection with fallback implementations
-- **Benefits**: Consistent user experience across all platforms
+### 5. Expo Go Development Environment
+- **Focus**: Optimized for Expo Go development and testing
+- **Storage**: SQLite for offline message caching and queue
+- **Gestures**: Native swipe gestures for chat management
+- **Alerts**: Native Alert.alert() for user feedback
+- **Pattern**: Expo Go compatible APIs and components
+- **Benefits**: Fast development cycle with real device testing
 
 ## Component Relationships
 
@@ -55,6 +54,7 @@ App
 │   ├── PresenceService (Online status)
 │   ├── DirectChatService (1-on-1 messaging)
 │   ├── PlatformStorageService (Cross-platform storage)
+│   ├── AudioService (Voice recording and playback)
 │   └── AuthErrorHandler (Enhanced error handling)
 └── Screens
     ├── AuthScreen (Login/Signup)
@@ -67,6 +67,9 @@ App
     ├── BottomTabBar (Navigation)
     ├── ProfileModal (Quick profile preview)
     ├── GroupParticipantsModal (Group members)
+    ├── VoiceMessageBubble (Voice message display)
+    ├── VoiceRecorder (Hold-to-record button)
+    └── VoiceMessagePreview (Review before sending)
     ├── AddMembersModal (Add members to groups)
     ├── OnlineIndicator (Green dot)
     └── SwipeableChatItem (Chat list with avatars)
@@ -538,12 +541,130 @@ showDeleteConfirmAlert('Chat', () => deleteChat());
 - [ ] SQLite is used for offline data
 - [ ] Native performance is maintained
 
+## Voice Messaging Architecture
+
+### Voice Message Flow
+```
+User holds record button → AudioService.startRecording() → 
+Local audio file created → User releases → AudioService.stopRecording() → 
+VoiceMessagePreview modal → User reviews → Send → 
+MediaService.uploadVoiceMessage() → Firebase Storage → 
+MessageService.sendVoiceMessage() → Firestore → 
+VoiceMessageBubble displays → AudioService.playAudio()
+```
+
+### Audio Service Pattern
+```typescript
+// AudioService handles all audio operations
+class AudioService {
+  // Recording
+  async startRecording(): Promise<string | null>
+  async stopRecording(): Promise<{uri: string, duration: number} | null>
+  
+  // Playback
+  async playAudio(uri: string, onStatusUpdate?: Function): Promise<void>
+  async pauseAudio(): Promise<void>
+  async stopAudio(): Promise<void>
+  
+  // File Management
+  async deleteRecording(uri: string): Promise<void>
+  async getAudioDuration(uri: string): Promise<number>
+}
+```
+
+### Expo Go Audio Handling
+```typescript
+// Expo Go optimized audio handling
+// Download and cache locally for offline playback
+const localUri = await MediaService.downloadVoiceMessage(audioUrl);
+await audioService.playAudio(localUri);
+```
+
+### Database Schema for Voice Messages
+```sql
+-- SQLite messages table with audio fields
+CREATE TABLE messages (
+  id TEXT PRIMARY KEY,
+  chatId TEXT NOT NULL,
+  senderId TEXT NOT NULL,
+  text TEXT,
+  imageUrl TEXT,
+  audioUrl TEXT,           -- Firebase Storage URL
+  audioDuration REAL,      -- Duration in seconds
+  audioSize INTEGER,       -- File size in bytes
+  timestamp INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'sending',
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL
+);
+```
+
+### Voice Message Components
+```typescript
+// VoiceMessageBubble - Display voice messages
+interface VoiceMessageBubbleProps {
+  audioUrl: string;
+  duration: number;
+  isOwnMessage: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  isPlaying: boolean;
+  currentTime: number;
+}
+
+// VoiceRecorder - Hold-to-record button
+interface VoiceRecorderProps {
+  onRecordingComplete: (audioUri: string, duration: number) => void;
+  onRecordingCancel: () => void;
+}
+
+// VoiceMessagePreview - Review before sending
+interface VoiceMessagePreviewProps {
+  visible: boolean;
+  audioUri: string;
+  duration: number;
+  onSend: () => void;
+  onCancel: () => void;
+  onReRecord: () => void;
+}
+```
+
+### Offline Voice Message Support
+```typescript
+// Offline voice message queueing
+if (networkService.isOnline()) {
+  // Upload to Firebase Storage first
+  const audioUrl = await MediaService.uploadVoiceMessage(chatId, messageId, audioUri);
+  // Send message with Firebase Storage URL
+  await MessageService.sendVoiceMessage(chatId, senderId, audioUri, duration);
+} else {
+  // Queue locally with local file URI
+  await syncService.queueMessage({
+    ...message,
+    audioUrl: localAudioUri, // Local file URI
+    status: 'sending'
+  });
+}
+```
+
+### Firebase Storage Security Rules
+```javascript
+// Allow voice message uploads
+match /voiceMessages/{chatId}/{allPaths=**} {
+  allow read, write: if request.auth != null;
+}
+```
+
 ### Future Development Guidelines
 
-1. **Always start with cross-platform compatibility in mind**
-2. **Use the crossPlatformAlert utility for all user feedback**
-3. **Provide alternative interactions for web users**
-4. **Test every feature on both platforms before considering it complete**
-5. **Document any platform-specific limitations**
-6. **Use Platform.OS checks liberally for different implementations**
+1. **Focus on Expo Go development environment**
+2. **Use native Alert.alert() for user feedback**
+3. **Implement native swipe gestures for interactions**
+4. **Test every feature on Expo Go before considering it complete**
+5. **Use SQLite for all offline data storage**
+6. **Handle audio permissions gracefully on mobile devices**
+7. **Implement proper audio file cleanup and caching**
+8. **Test voice messaging on real devices (microphone required)**
+9. **Consider audio quality and file size optimization**
+10. **Optimize for iOS and Android through Expo Go**
 

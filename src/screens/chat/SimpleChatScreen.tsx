@@ -27,7 +27,11 @@ import ProfileModal from '../../components/ProfileModal';
 import GroupParticipantsModal from '../../components/GroupParticipantsModal';
 import AddMembersModal from '../../components/AddMembersModal';
 import ReadReceipt from '../../components/ReadReceipt';
+import VoiceRecorder from '../../components/VoiceRecorder';
+import VoiceMessageBubble from '../../components/VoiceMessageBubble';
+import VoiceMessagePreview from '../../components/VoiceMessagePreview';
 import { ReadReceiptService, UserReadStatus } from '../../services/readReceipts';
+import { audioService } from '../../services/audio';
 
 interface SimpleChatScreenProps {
   chatId: string;
@@ -48,6 +52,12 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
   const [readStatus, setReadStatus] = useState<Record<string, UserReadStatus>>({});
+  
+  // Voice recording state
+  const [recordedAudio, setRecordedAudio] = useState<{uri: string, duration: number} | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  
   const networkState = useNetworkState();
 
   // Get screen dimensions for responsive design
@@ -176,6 +186,64 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message');
+    }
+  };
+
+  // Voice recording handlers
+  const handleVoiceRecordingComplete = (audioUri: string, duration: number) => {
+    setRecordedAudio({ uri: audioUri, duration });
+    setShowPreviewModal(true);
+  };
+
+  const handleVoiceRecordingCancel = () => {
+    setRecordedAudio(null);
+    setShowPreviewModal(false);
+  };
+
+  const handleSendVoiceMessage = async () => {
+    if (!recordedAudio || !user) return;
+    
+    try {
+      const sentMessage = await MessageService.sendVoiceMessage(
+        chatId,
+        user.uid,
+        recordedAudio.uri,
+        recordedAudio.duration,
+        user.displayName,
+        user.photoURL
+      );
+      
+      // Update chat list immediately with the new message
+      updateChatLastMessage(chatId, sentMessage);
+      
+      setRecordedAudio(null);
+      setShowPreviewModal(false);
+    } catch (error) {
+      console.error('Error sending voice message:', error);
+      Alert.alert('Error', 'Failed to send voice message');
+    }
+  };
+
+  const handlePlayVoiceMessage = async (messageId: string, audioUrl: string) => {
+    try {
+      // Stop any currently playing audio
+      if (playingMessageId && playingMessageId !== messageId) {
+        await audioService.stopAudio();
+      }
+      
+      setPlayingMessageId(messageId);
+      // The actual playback will be handled by VoiceMessageBubble
+    } catch (error) {
+      console.error('Error playing voice message:', error);
+    }
+  };
+
+  const handlePauseVoiceMessage = async () => {
+    try {
+      await audioService.pauseAudio();
+      setPlayingMessageId(null);
+    } catch (error) {
+      console.error('Error pausing voice message:', error);
     }
   };
 
@@ -330,20 +398,35 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         {isGroupChat && !isOwnMessage && (
           <Text style={styles.senderName}>{senderName}</Text>
         )}
-        <View style={[
-          styles.messageBubble,
-          isOwnMessage ? styles.ownBubble : styles.otherBubble
-        ]}>
-          <Text style={[
-            styles.messageText,
-            isOwnMessage ? styles.ownText : styles.otherText
+        
+        {/* Voice Message Bubble */}
+        {item.audioUrl ? (
+          <VoiceMessageBubble
+            audioUrl={item.audioUrl}
+            duration={item.audioDuration || 0}
+            isOwnMessage={isOwnMessage}
+            onPlay={() => handlePlayVoiceMessage(item.id, item.audioUrl!)}
+            onPause={() => handlePauseVoiceMessage()}
+            isPlaying={playingMessageId === item.id}
+            currentTime={0}
+          />
+        ) : (
+          /* Text Message Bubble */
+          <View style={[
+            styles.messageBubble,
+            isOwnMessage ? styles.ownBubble : styles.otherBubble
           ]}>
-            {item.text}
-          </Text>
-          <Text style={styles.timestamp}>
-            {new Date(item.timestamp).toLocaleTimeString()}
-          </Text>
-        </View>
+            <Text style={[
+              styles.messageText,
+              isOwnMessage ? styles.ownText : styles.otherText
+            ]}>
+              {item.text}
+            </Text>
+            <Text style={styles.timestamp}>
+              {new Date(item.timestamp).toLocaleTimeString()}
+            </Text>
+          </View>
+        )}
         
         {/* Facebook Messenger-style Read Receipt with profile icons */}
         <ReadReceipt 
@@ -386,6 +469,10 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         />
 
         <View style={styles.inputContainer}>
+          <VoiceRecorder
+            onRecordingComplete={handleVoiceRecordingComplete}
+            onRecordingCancel={handleVoiceRecordingCancel}
+          />
           <TextInput
             style={styles.textInput}
             value={newMessage}
@@ -446,6 +533,21 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             // Update the group participants list
             setGroupParticipants(prev => [...prev, ...newMembers]);
             setShowAddMembersModal(false);
+          }}
+        />
+      )}
+
+      {/* Voice Message Preview Modal */}
+      {recordedAudio && (
+        <VoiceMessagePreview
+          visible={showPreviewModal}
+          audioUri={recordedAudio.uri}
+          duration={recordedAudio.duration}
+          onSend={handleSendVoiceMessage}
+          onCancel={handleVoiceRecordingCancel}
+          onReRecord={() => {
+            setRecordedAudio(null);
+            setShowPreviewModal(false);
           }}
         />
       )}
@@ -559,6 +661,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     backgroundColor: '#fff',
     borderTopWidth: 1,
@@ -571,7 +674,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginRight: 12,
+    marginHorizontal: 12,
     maxHeight: 100,
   },
   sendButton: {

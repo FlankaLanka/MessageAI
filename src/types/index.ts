@@ -23,6 +23,9 @@ export interface Message {
   senderPhotoURL?: string;
   text?: string;
   imageUrl?: string;
+  audioUrl?: string;        // Firebase Storage URL for voice messages
+  audioDuration?: number;   // Duration in seconds
+  audioSize?: number;       // File size in bytes
   timestamp: number;
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   chatId: string;

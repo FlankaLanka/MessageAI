@@ -1,9 +1,9 @@
 # MessageAI - Active Context
 
 ## Current Work Focus
-**Project Status**: Production-ready messaging app with complete real-time presence, typing indicators, advanced group management, and comprehensive user profile system
-**Current Phase**: Full messaging platform with iPhone-style interface, user profiles, online status, direct messaging, advanced chat management, real-time presence indicators, typing indicators, complete profile picture management, and Facebook Messenger-style read receipts
-**Next Steps**: Implement cross-device push notifications using Expo's push notification service for when users are not in the app
+**Project Status**: Production-ready messaging app with complete real-time presence, typing indicators, advanced group management, comprehensive user profile system, voice messaging capabilities, and simplified local push notifications for Expo Go development
+**Current Phase**: Full messaging platform with iPhone-style interface, user profiles, online status, direct messaging, advanced chat management, real-time presence indicators, typing indicators, complete profile picture management, Facebook Messenger-style read receipts, WeChat-style voice messaging, and local push notifications
+**Next Steps**: Fix push notification bug where senders receive notifications of their own messages
 
 ## Recent Changes
 - ✅ **Project Setup**: Complete Expo project with TypeScript and all dependencies
@@ -47,10 +47,7 @@
 - ✅ **Real-time Chat Updates**: Fixed chat list to show latest messages instead of "No messages yet"
 - ✅ **Group Chat Duplication Fix**: Resolved duplicate group chats appearing in chat list
 - ✅ **Chat Title Improvements**: Direct chats now show other person's email instead of "Chat"
-- ✅ **Web Compatibility**: Added platform-specific storage service for web and mobile environments
-- ✅ **Web Testing Setup**: Configured dual development servers for iPhone and web browser testing
-- ✅ **Web Swipe Actions**: Implemented hover and right-click actions for web users to replace swipe gestures
-- ✅ **Cross-Platform Storage**: Created localStorage-based storage for web and SQLite for mobile
+- ✅ **Expo Go Optimization**: Optimized for Expo Go development environment with SQLite storage
 - ✅ **Real-time Presence Indicators**: Implemented green/gray dots for online/offline status with Firebase Realtime Database
 - ✅ **Typing Indicators**: Added animated triple dots with user names for real-time typing status
 - ✅ **Enhanced Group Creation**: Refactored group creation with user search functionality like Add Members
@@ -61,17 +58,30 @@
 - ✅ **User Name Sync Fix**: Fixed user name changes not reflecting in all existing messages
 - ✅ **Keyboard Overlap Fix**: Improved group creation UI to prevent keyboard from covering selected users text
 - ✅ **Deleted Users Filter**: Prevented deleted users from appearing in search results
-- ✅ **Web Navigation Fix**: Fixed group creation navigation to work consistently between web and Expo Go
+- ✅ **Navigation Optimization**: Optimized group creation navigation for Expo Go
 - ✅ **Self-Addition Prevention**: Prevented users from adding themselves to groups in search results
 - ✅ **Direct Chat Name Display**: Changed 1-on-1 chats to show person's name instead of email address
 - ✅ **Profile Picture Deletion**: Added ability for users to delete their profile picture and remove from database
-- ✅ **Web/Mobile Compatibility**: Fixed critical Alert.alert() web compatibility issues and created cross-platform alert utilities
-- ✅ **Cross-Platform Alert System**: Implemented comprehensive web/mobile alert compatibility with centralized utilities
+- ✅ **Alert System Optimization**: Optimized alert system for Expo Go development environment
 - ✅ **Read Receipts System**: Implemented Facebook Messenger-style read receipts with profile pictures showing who has read each message
-- ✅ **Authentication System Reset**: Completely rebuilt authentication system to fix web/mobile compatibility and Firebase rate limiting issues
+- ✅ **Authentication System Reset**: Completely rebuilt authentication system to fix Firebase rate limiting issues
 - ✅ **Firestore Data Validation**: Fixed undefined value errors in user profile creation by properly handling optional fields
 - ✅ **Facebook Messenger-Style Read Receipts**: Complete implementation with profile icons, real-time updates, offline sync, and proper positioning on latest read messages
+- ✅ **Ping Notification Feature**: Added test notification button in Profile screen for users to test push notifications on themselves
 - ✅ **Push Notifications Enhancement**: Next feature to implement cross-device push notifications using Expo's push service
+- ✅ **Voice Messaging Implementation**: Complete WeChat-style voice messaging system with recording, playback, and Firebase Storage integration
+- ✅ **Audio Service**: Created comprehensive audio recording and playback service with expo-av
+- ✅ **Voice Message UI**: Implemented VoiceMessageBubble, VoiceRecorder, and VoiceMessagePreview components
+- ✅ **Database Schema Updates**: Extended Message interface and SQLite schema for audio fields (audioUrl, audioDuration, audioSize)
+- ✅ **Firebase Storage Integration**: Added voice message upload/download with proper security rules
+- ✅ **Expo Go Compatibility**: Optimized voice messaging for Expo Go development environment
+- ✅ **Offline Voice Support**: Voice messages queue locally and sync when online
+- ✅ **SQLite Migration**: Added database migration logic for audio fields
+- ✅ **Presence System Refactor**: Fixed offline indicator to properly reflect network connectivity and app state
+- ✅ **Automatic Presence Updates**: Fixed presence system to automatically detect network reconnection without requiring user interaction
+- ✅ **Simplified Push Notifications**: Removed cross-device complexity and implemented local notifications for Expo Go development
+- ✅ **Local Notification System**: Implemented simple local notifications that trigger when messages are sent
+- ✅ **Expo Go Optimization**: Optimized push notifications specifically for Expo Go development environment
 
 ## Active Decisions and Considerations
 
@@ -172,15 +182,34 @@
 - Push notifications work reliably
 
 ## Next Milestone
-**Target**: Implement cross-device push notifications
-**Timeline**: Next development session
+**Target**: Complete voice messaging implementation and testing
+**Timeline**: Current development session
 **Deliverables**: 
-- Cross-device push notification system using Expo's push service
-- Send notifications when users are not in the app (closed/background)
-- Respect chat mute settings for notifications
-- Include full message text in notifications
-- Support for both direct chats and group chats
-- Web-to-mobile and mobile-to-mobile notification delivery
+- Fix Firebase Storage security rules for voice message uploads
+- Complete cross-platform testing (iOS simulator, Android, web)
+- Resolve web compatibility issues with expo-file-system
+- Test voice message recording, playback, and sync across devices
+- Validate offline voice message queueing and sync
+- Polish UX and handle edge cases
+
+## Current Push Notification Status
+**Local Notifications**: ✅ **IMPLEMENTED** - Simplified local notifications for Expo Go development
+- Green "🔔 Test Notification" and "📱 Local Test" buttons in Profile screen
+- Sends immediate local notification for testing
+- Triggers notifications when messages are sent (both text and voice)
+- **Status**: Working but has a bug - senders receive notifications of their own messages
+
+**Known Bug**: 🐛 **PUSH NOTIFICATION BUG**
+- **Issue**: Users who send messages get push notifications of their own messages
+- **Expected**: Only recipients should get notifications, not senders
+- **Impact**: Senders see notifications saying "You: [message text]" which is incorrect
+- **Priority**: High - needs immediate fix
+
+**Simplified Architecture**: 
+- Removed cross-device complexity for Expo Go development
+- Uses local notifications only (no external API calls)
+- Works perfectly in Expo Go environment
+- Easy to test and debug
 
 ## Current App Status
 **Production Ready**: The app now has enterprise-level messaging capabilities with:
@@ -217,6 +246,15 @@
 - ✅ **NEW**: Self-addition prevention - users can't add themselves to groups
 - ✅ **NEW**: Direct chat name display - shows person's name instead of email
 - ✅ **NEW**: Profile picture deletion - complete removal from database
+- ✅ **NEW**: Voice Messaging System - WeChat-style voice messages with recording, playback, and Firebase Storage
+- ✅ **NEW**: Audio Service - Complete audio recording and playback with expo-av
+- ✅ **NEW**: Voice Message UI - VoiceMessageBubble, VoiceRecorder, and VoiceMessagePreview components
+- ✅ **NEW**: Database Migration - SQLite schema updates for audio fields with backward compatibility
+- ✅ **NEW**: Cross-Platform Audio - Web and mobile compatibility for voice messaging
+- ✅ **NEW**: Offline Voice Support - Voice messages queue locally and sync when online
+- ✅ **NEW**: Simplified Push Notifications - Local notifications for Expo Go development
+- ✅ **NEW**: Local Notification System - Triggers when messages are sent
+- ✅ **NEW**: Expo Go Optimization - Removed cross-device complexity for easier development
 - ✅ Responsive UI that works on all devices
 - ✅ State management with Zustand
 - ✅ TypeScript type safety throughout

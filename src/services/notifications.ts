@@ -237,6 +237,82 @@ class NotificationService {
   async getPermissionsStatus() {
     return await Notifications.getPermissionsAsync();
   }
+
+  // Send ping notification for testing
+  async sendPingNotification() {
+    try {
+      await this.sendNotification(
+        'Ping Test',
+        'This is a test notification from MessageAI',
+        { type: 'ping_test' },
+        true
+      );
+      console.log('Ping notification sent successfully');
+    } catch (error) {
+      console.error('Error sending ping notification:', error);
+      throw error;
+    }
+  }
+
+  // Send local notification for message received
+  async sendLocalMessageNotification(
+    senderName: string,
+    messageText: string,
+    messageType: 'text' | 'voice' | 'image' = 'text',
+    chatName?: string
+  ) {
+    try {
+      console.log('Sending local message notification...');
+      
+      // Prepare notification content
+      const title = chatName || senderName;
+      const body = `${senderName}: ${this.formatMessageForNotification(messageText, messageType)}`;
+      
+      // Send local notification
+      await this.sendNotification(title, body, {
+        type: 'message',
+        messageType,
+        senderName
+      });
+      
+      console.log('Local message notification sent successfully');
+    } catch (error) {
+      console.error('Error sending local message notification:', error);
+    }
+  }
+
+  // Format message content for notification display
+  private formatMessageForNotification(text: string, messageType: 'text' | 'voice' | 'image'): string {
+    switch (messageType) {
+      case 'voice':
+        return '🎤 Voice message';
+      case 'image':
+        return '📷 Image';
+      case 'text':
+      default:
+        return text;
+    }
+  }
+
+  // Test local notification for Expo Go
+  async testLocalNotification() {
+    try {
+      console.log('Testing local notification...');
+      
+      await this.sendNotification(
+        'MessageAI Test',
+        'This is a test local notification from MessageAI!',
+        { type: 'test', timestamp: Date.now() },
+        true
+      );
+      
+      console.log('Local notification test sent successfully');
+      return true;
+    } catch (error) {
+      console.error('Error testing local notification:', error);
+      return false;
+    }
+  }
 }
 
 export const notificationService = new NotificationService();

@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getDownloadURL, ref, uploadBytes, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
 
@@ -145,6 +146,91 @@ export class MediaService {
       console.error('Error deleting profile picture:', error);
       // Don't throw error - deletion should be graceful
       // The image might already be deleted or the URL might be invalid
+    }
+  }
+
+  // Upload voice message to Firebase Storage
+  static async uploadVoiceMessage(
+    chatId: string, 
+    messageId: string, 
+    audioUri: string
+  ): Promise<string> {
+    try {
+      // Convert audio file to blob
+      const response = await fetch(audioUri);
+      const blob = await response.blob();
+      
+      // Create storage reference
+      const storageRef = ref(storage, `voiceMessages/${chatId}/${messageId}.m4a`);
+      
+      // Upload the blob
+      const snapshot = await uploadBytes(storageRef, blob);
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      console.log('Voice message uploaded successfully:', downloadURL);
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading voice message:', error);
+      throw error;
+    }
+  }
+
+  // Delete voice message from Firebase Storage
+  static async deleteVoiceMessage(audioUrl: string): Promise<void> {
+    try {
+      if (!audioUrl) {
+        console.log('No audio URL provided');
+        return;
+      }
+
+      // Extract the storage path from the URL
+      const url = new URL(audioUrl);
+      const pathMatch = url.pathname.match(/\/o\/(.+)/);
+      
+      if (!pathMatch) {
+        console.log('Could not extract storage path from URL:', audioUrl);
+        return;
+      }
+
+      // Decode the path (URL encoded)
+      const storagePath = decodeURIComponent(pathMatch[1]);
+      
+      // Create storage reference and delete
+      const storageRef = ref(storage, storagePath);
+      await deleteObject(storageRef);
+      
+      console.log('Voice message deleted successfully from storage');
+    } catch (error) {
+      console.error('Error deleting voice message:', error);
+      // Don't throw error - deletion should be graceful
+    }
+  }
+
+  // Download voice message for offline playback
+  static async downloadVoiceMessage(audioUrl: string): Promise<string> {
+    try {
+      if (!audioUrl) {
+        throw new Error('No audio URL provided');
+      }
+
+      // Create local file path
+      const fileName = audioUrl.split('/').pop() || 'voice_message.m4a';
+      const localUri = `${FileSystem.cacheDirectory}${fileName}`;
+      
+      // Download the file
+      const downloadResult = await FileSystem.downloadAsync(audioUrl, localUri);
+      
+      if (downloadResult.status === 200) {
+        console.log('Voice message downloaded successfully:', localUri);
+        return localUri;
+      } else {
+        throw new Error(`Download failed with status: ${downloadResult.status}`);
+      }
+    } catch (error) {
+      console.error('Error downloading voice message:', error);
+      throw error;
     }
   }
 }

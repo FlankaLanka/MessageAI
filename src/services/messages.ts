@@ -83,6 +83,19 @@ export class MessageService {
         // Update chat document with latest message info
         await this.updateChatLastMessage(chatId, sentMessage);
 
+        // Send local notification for message sent
+        try {
+          const { notificationService } = await import('./notifications');
+          await notificationService.sendLocalMessageNotification(
+            senderName || 'You',
+            text,
+            'text'
+          );
+        } catch (error) {
+          console.error('Error sending local notification:', error);
+          // Don't throw error - notifications are not critical for message sending
+        }
+
         // Update status to sent after a short delay
         setTimeout(async () => {
           try {
@@ -296,12 +309,24 @@ export class MessageService {
           chatId: message.chatId,
         };
         
-        // Only add senderName and senderPhotoURL if they have values
+        // Add optional fields if they have values
         if (message.senderName) {
           messageData.senderName = message.senderName;
         }
         if (message.senderPhotoURL) {
           messageData.senderPhotoURL = message.senderPhotoURL;
+        }
+        if (message.imageUrl) {
+          messageData.imageUrl = message.imageUrl;
+        }
+        if (message.audioUrl) {
+          messageData.audioUrl = message.audioUrl;
+        }
+        if (message.audioDuration) {
+          messageData.audioDuration = message.audioDuration;
+        }
+        if (message.audioSize) {
+          messageData.audioSize = message.audioSize;
         }
 
         await setDoc(messageRef, messageData);
@@ -326,13 +351,42 @@ export class MessageService {
   static async updateChatLastMessage(chatId: string, message: Message): Promise<void> {
     try {
       const chatRef = doc(firestore, 'chats', chatId);
+      
+      // Handle different message types
+      let lastMessageContent: any = {
+        senderId: message.senderId,
+        senderName: message.senderName,
+        timestamp: message.timestamp
+      };
+
+      if (message.audioUrl) {
+        // Voice message
+        lastMessageContent = {
+          ...lastMessageContent,
+          type: 'voice',
+          audioUrl: message.audioUrl,
+          audioDuration: message.audioDuration,
+          text: `🎤 Voice message (${Math.round(message.audioDuration || 0)}s)` // Display text for chat list
+        };
+      } else if (message.imageUrl) {
+        // Image message
+        lastMessageContent = {
+          ...lastMessageContent,
+          type: 'image',
+          imageUrl: message.imageUrl,
+          text: '📷 Image'
+        };
+      } else {
+        // Text message
+        lastMessageContent = {
+          ...lastMessageContent,
+          type: 'text',
+          text: message.text
+        };
+      }
+
       await updateDoc(chatRef, {
-        lastMessage: {
-          text: message.text,
-          senderId: message.senderId,
-          senderName: message.senderName,
-          timestamp: message.timestamp
-        },
+        lastMessage: lastMessageContent,
         lastMessageTime: message.timestamp,
         updatedAt: serverTimestamp()
       });
@@ -428,6 +482,138 @@ export class MessageService {
       console.log('User left chat successfully:', chatId);
     } catch (error) {
       console.error('Error leaving chat:', error);
+      throw error;
+    }
+  }
+
+  // Send a voice message with offline support
+  static async sendVoiceMessage(
+    chatId: string, 
+    senderId: string, 
+    audioUri: string,
+    duration: number,
+    senderName?: string,
+    senderPhotoURL?: string
+  ): Promise<Message> {
+    const messageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const message: Message = {
+      id: messageId,
+      chatId,
+      senderId,
+      audioUrl: audioUri, // Will be updated with Firebase Storage URL after upload
+      audioDuration: duration,
+      timestamp: Date.now(),
+      status: 'sending'
+    };
+    
+    // Only add senderName and senderPhotoURL if they have values
+    if (senderName) {
+      message.senderName = senderName;
+    }
+    if (senderPhotoURL) {
+      message.senderPhotoURL = senderPhotoURL;
+    }
+
+    try {
+      if (networkService.isOnline()) {
+        // Online: Upload audio file to Firebase Storage first
+        const { MediaService } = await import('./media');
+        const audioUrl = await MediaService.uploadVoiceMessage(chatId, messageId, audioUri);
+        
+        // Get file size
+        const { getInfoAsync } = await import('expo-file-system/legacy');
+        const fileInfo = await getInfoAsync(audioUri);
+        const audioSize = fileInfo.size || 0;
+
+        // Update message with Firebase Storage URL
+        const messageData: any = {
+          senderId,
+          audioUrl,
+          audioDuration: duration,
+          audioSize,
+          timestamp: serverTimestamp(),
+          status: 'sending',
+          chatId,
+        };
+        
+        // Only add senderName and senderPhotoURL if they have values
+        if (senderName) {
+          messageData.senderName = senderName;
+        }
+        if (senderPhotoURL) {
+          messageData.senderPhotoURL = senderPhotoURL;
+        }
+
+        const docRef = await addDoc(collection(firestore, 'messages', chatId, 'threads'), messageData);
+        
+        // Update local message with server ID and Firebase Storage URL
+        const sentMessage: Message = {
+          ...message,
+          id: docRef.id,
+          audioUrl,
+          audioSize,
+          status: 'sent'
+        };
+
+        // Save to local storage
+        await syncService.queueMessage(sentMessage);
+
+        // Update chat document with latest message info
+        await this.updateChatLastMessage(chatId, sentMessage);
+
+        // Send local notification for voice message sent
+        try {
+          const { notificationService } = await import('./notifications');
+          await notificationService.sendLocalMessageNotification(
+            senderName || 'You',
+            'Voice message',
+            'voice'
+          );
+        } catch (error) {
+          console.error('Error sending local notification for voice message:', error);
+          // Don't throw error - notifications are not critical for message sending
+        }
+
+        // Update status to sent after a short delay
+        setTimeout(async () => {
+          try {
+            await updateDoc(doc(firestore, 'messages', chatId, 'threads', docRef.id), {
+              status: 'sent'
+            });
+          } catch (error) {
+            console.error('Error updating voice message status:', error);
+          }
+        }, 1000);
+
+        return sentMessage;
+      } else {
+        // Offline: Queue message locally
+        console.log('Offline: Queueing voice message locally');
+        
+        // Store audio file locally for offline queue
+        const { getInfoAsync } = await import('expo-file-system/legacy');
+        const fileInfo = await getInfoAsync(audioUri);
+        const audioSize = fileInfo.size || 0;
+        
+        const offlineMessage: Message = {
+          ...message,
+          audioSize,
+          status: 'sending'
+        };
+
+        await syncService.queueMessage(offlineMessage);
+        return offlineMessage;
+      }
+    } catch (error) {
+      console.error('Error sending voice message:', error);
+      
+      // Update message status to failed
+      const failedMessage: Message = {
+        ...message,
+        status: 'failed'
+      };
+      
+      await syncService.queueMessage(failedMessage);
       throw error;
     }
   }

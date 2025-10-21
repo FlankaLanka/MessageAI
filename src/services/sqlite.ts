@@ -18,7 +18,7 @@ class SQLiteService {
   private async createTables() {
     if (!this.db) throw new Error('Database not initialized');
 
-    // Create messages table
+    // Create messages table with migration support
     await this.db.execAsync(`
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
@@ -32,6 +32,28 @@ class SQLiteService {
         updatedAt INTEGER NOT NULL
       );
     `);
+
+    // Add audio columns if they don't exist (migration)
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN audioUrl TEXT;`);
+    } catch (error) {
+      // Column already exists, ignore error
+      console.log('audioUrl column already exists or error adding:', error);
+    }
+
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN audioDuration REAL;`);
+    } catch (error) {
+      // Column already exists, ignore error
+      console.log('audioDuration column already exists or error adding:', error);
+    }
+
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN audioSize INTEGER;`);
+    } catch (error) {
+      // Column already exists, ignore error
+      console.log('audioSize column already exists or error adding:', error);
+    }
 
     // Create users table
     await this.db.execAsync(`
@@ -92,22 +114,47 @@ class SQLiteService {
     if (!this.db) throw new Error('Database not initialized');
 
     try {
-      await this.db.runAsync(
-        `INSERT OR REPLACE INTO messages 
-         (id, chatId, senderId, text, imageUrl, timestamp, status, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          message.id,
-          message.chatId,
-          message.senderId,
-          message.text || null,
-          message.imageUrl || null,
-          message.timestamp,
-          message.status,
-          Date.now(),
-          Date.now()
-        ]
-      );
+      // First try with all columns (including audio)
+      try {
+        await this.db.runAsync(
+          `INSERT OR REPLACE INTO messages 
+           (id, chatId, senderId, text, imageUrl, audioUrl, audioDuration, audioSize, timestamp, status, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            message.id,
+            message.chatId,
+            message.senderId,
+            message.text || null,
+            message.imageUrl || null,
+            message.audioUrl || null,
+            message.audioDuration || null,
+            message.audioSize || null,
+            message.timestamp,
+            message.status,
+            Date.now(),
+            Date.now()
+          ]
+        );
+      } catch (error) {
+        // If audio columns don't exist, try without them (fallback)
+        console.log('Audio columns not available, saving without audio fields:', error);
+        await this.db.runAsync(
+          `INSERT OR REPLACE INTO messages 
+           (id, chatId, senderId, text, imageUrl, timestamp, status, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            message.id,
+            message.chatId,
+            message.senderId,
+            message.text || null,
+            message.imageUrl || null,
+            message.timestamp,
+            message.status,
+            Date.now(),
+            Date.now()
+          ]
+        );
+      }
       console.log('Message saved to SQLite:', message.id);
     } catch (error) {
       console.error('Error saving message to SQLite:', error);
@@ -133,6 +180,9 @@ class SQLiteService {
         senderId: row.senderId as string,
         text: row.text as string | undefined,
         imageUrl: row.imageUrl as string | undefined,
+        audioUrl: (row as any).audioUrl as string | undefined,
+        audioDuration: (row as any).audioDuration as number | undefined,
+        audioSize: (row as any).audioSize as number | undefined,
         timestamp: row.timestamp as number,
         status: row.status as 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
       }));

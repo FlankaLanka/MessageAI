@@ -165,6 +165,24 @@ export class AuthService {
     }
   }
 
+  // Sync display name with Firebase Auth profile
+  static async syncDisplayNameWithProfile(uid: string, displayName: string): Promise<void> {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser && currentUser.uid === uid) {
+        await updateProfile(currentUser, {
+          displayName: displayName
+        });
+        console.log('✅ Display name synced with Firebase Auth:', displayName);
+      } else {
+        console.log('⚠️ Cannot sync display name: user not authenticated or UID mismatch');
+      }
+    } catch (error: any) {
+      console.error('❌ Error syncing display name with Firebase Auth:', error);
+      // Don't throw error - this is not critical for app functionality
+    }
+  }
+
   // Listen to auth state changes
   static onAuthStateChanged(callback: (user: FirebaseUser | null) => void) {
     return onAuthStateChanged(auth, callback);
