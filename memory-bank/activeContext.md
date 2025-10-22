@@ -1,9 +1,9 @@
 # MessageAI - Active Context
 
 ## Current Work Focus
-**Project Status**: Production-ready messaging app with complete real-time presence, typing indicators, advanced group management, comprehensive user profile system, voice messaging capabilities, and simplified local push notifications for Expo Go development
-**Current Phase**: Full messaging platform with iPhone-style interface, user profiles, online status, direct messaging, advanced chat management, real-time presence indicators, typing indicators, complete profile picture management, Facebook Messenger-style read receipts, WeChat-style voice messaging, and local push notifications
-**Next Steps**: Fix push notification bug where senders receive notifications of their own messages
+**Project Status**: Production-ready messaging app with complete real-time presence, typing indicators, advanced group management, comprehensive user profile system, voice messaging capabilities, simplified local push notifications, **enhanced AI-powered translation system with advanced cultural context detection**, **comprehensive localization system with unified language settings**, and **smart message suggestions with speaker-aware context**
+**Current Phase**: Full messaging platform with iPhone-style interface, user profiles, online status, direct messaging, advanced chat management, real-time presence indicators, typing indicators, complete profile picture management, Facebook Messenger-style read receipts, WeChat-style voice messaging, local push notifications, **enhanced AI translation features with improved cultural hints detection**, **multi-language localization with unified settings**, and **intelligent message suggestions that appear when keyboard opens**
+**Next Steps**: Monitor smart suggestions performance, optimize AI translation performance, fix voice transcription bug, fix push notification bug where senders receive notifications of their own messages
 
 ## Recent Changes
 - ✅ **Project Setup**: Complete Expo project with TypeScript and all dependencies
@@ -82,6 +82,45 @@
 - ✅ **Simplified Push Notifications**: Removed cross-device complexity and implemented local notifications for Expo Go development
 - ✅ **Local Notification System**: Implemented simple local notifications that trigger when messages are sent
 - ✅ **Expo Go Optimization**: Optimized push notifications specifically for Expo Go development environment
+- ✅ **AI Translation System**: Complete AI-powered translation system with cultural context detection
+- ✅ **Translation Data Models**: Extended Message interface with Translation and CulturalHint interfaces
+- ✅ **OpenAI Integration**: GPT-4o for translation + cultural hints, Whisper for voice transcription
+- ✅ **Translation UI Components**: TranslatedMessageBubble, CulturalHintModal, LanguageSelector
+- ✅ **Cultural Context Detection**: Smart identification of slang, idioms, and cultural references
+- ✅ **Voice Message Translation**: Automatic transcription and translation of voice messages
+- ✅ **Translation Settings**: User preferences for default language and translation features
+- ✅ **Offline Translation Support**: Translation queueing and caching for offline scenarios
+- ✅ **Simplified Language Strategy**: User sets default language instead of auto-detection
+- ✅ **Comprehensive Localization System**: Multi-language support for 12 languages with native names
+- ✅ **Localization Service**: Centralized translation management with language detection and switching
+- ✅ **useLocalization Hook**: Easy access to translations with parameter formatting support
+- ✅ **Language Selector Component**: Beautiful modal interface for language selection with real-time updates
+- ✅ **Inline Translation UI**: Translation buttons and displays integrated within message bubbles
+- ✅ **Voice Translation Integration**: Voice message translation with inline UI and proper data flow
+- ✅ **Store Integration**: Automatic localization updates when user language changes
+- ✅ **UI Component Localization**: All major UI components now use localized strings
+- ✅ **Real-time Language Switching**: UI updates immediately when language changes
+- ✅ **Persistent Language Settings**: Language choice saved to user profile and restored across sessions
+- ✅ **Combined Settings Interface**: Unified Settings & Translation Settings in single modal
+- ✅ **Removed Test Buttons**: Cleaned up ProfileScreen by removing test notification and presence buttons
+- ✅ **Translation Language Sync**: Fixed translation components to use user's selected language instead of hardcoded English
+- ✅ **Store Synchronization**: Translation language automatically syncs with user's language preference
+- ✅ **Unified LanguageSelector**: Enhanced with comprehensive settings including auto-translate, cultural hints, and cache management
+- ✅ **Enhanced Cultural Hints Detection**: Advanced AI-powered detection system for slangs, idioms, and cultural references
+- ✅ **Improved Translation Settings**: Removed auto-translate feature and unified language selection interface
+- ✅ **Language Settings Rebranding**: Changed from "Translation Settings" to "Language Settings" for better UX
+- ✅ **Enhanced AI Detection**: OpenAI GPT-4o powered cultural context analysis with confidence scoring
+- ✅ **Pattern Matching System**: Built-in language-specific databases for common cultural terms
+- ✅ **Advanced Cultural Hints Service**: Comprehensive service with quality validation and statistics
+- ✅ **Translation Integration**: Enhanced simpleTranslation service with cultural hints integration
+- ✅ **Cultural Context Examples**: Comprehensive examples showing usage of enhanced cultural hints system
+- ✅ **Smart Message Suggestions**: iPhone-style intelligent message suggestions that appear when keyboard opens
+- ✅ **Speaker-Aware Context**: AI understands who is speaking and provides role-appropriate suggestions
+- ✅ **RAG Integration**: Smart suggestions use conversation context from Supabase Vector for better relevance
+- ✅ **Function Calling**: OpenAI function calling for structured, context-aware suggestion generation
+- ✅ **Top 3 Suggestions**: Simplified to show only the 3 most likely responses when keyboard opens
+- ✅ **Keyboard-Triggered**: Suggestions appear automatically when keyboard opens, not while typing
+- ✅ **Codebase Cleanup**: Removed all test components, demo files, and example utilities for cleaner codebase
 
 ## Active Decisions and Considerations
 
@@ -211,6 +250,15 @@
 - Works perfectly in Expo Go environment
 - Easy to test and debug
 
+## Current Voice Transcription Status
+**Voice Transcription**: 🐛 **BUGGED** - Voice message transcription is not working properly
+- **Issue**: Voice messages show "No transcription available" even when transcription should exist
+- **Expected**: Voice messages should be automatically transcribed using OpenAI Whisper
+- **Impact**: Voice translation feature cannot work without transcription
+- **Priority**: High - blocks voice translation functionality
+- **Root Cause**: Transcription data not being properly stored or retrieved from database
+- **Workaround**: Users can still record and play voice messages, but translation is unavailable
+
 ## Current App Status
 **Production Ready**: The app now has enterprise-level messaging capabilities with:
 - ✅ User authentication (email/password + Google)
@@ -255,6 +303,25 @@
 - ✅ **NEW**: Simplified Push Notifications - Local notifications for Expo Go development
 - ✅ **NEW**: Local Notification System - Triggers when messages are sent
 - ✅ **NEW**: Expo Go Optimization - Removed cross-device complexity for easier development
+- ✅ **NEW**: AI Translation System - Complete OpenAI-powered translation with cultural context
+- ✅ **NEW**: Two-tier Message Display - Original message + translation with cultural hints
+- ✅ **NEW**: Cultural Context Detection - Smart identification of slang, idioms, cultural references
+- ✅ **NEW**: Voice Message Translation - Automatic transcription and translation
+- ✅ **NEW**: Translation Settings - User preferences for language and features
+- ✅ **NEW**: Offline Translation Support - Queueing and caching for offline scenarios
+- ✅ **NEW**: Simplified Language Strategy - User-controlled translation preferences
+- ✅ **NEW**: Comprehensive Localization System - Multi-language support for 12 languages
+- ✅ **NEW**: Localization Service - Centralized translation management with real-time switching
+- ✅ **NEW**: Inline Translation UI - Translation buttons and displays integrated within message bubbles
+- ✅ **NEW**: Voice Translation Integration - Voice message translation with inline UI
+- ✅ **NEW**: Real-time Language Switching - UI updates immediately when language changes
+- ✅ **NEW**: Persistent Language Settings - Language choice saved to user profile
+- ✅ **NEW**: Smart Message Suggestions - iPhone-style intelligent suggestions with speaker-aware context
+- ✅ **NEW**: RAG-Powered Suggestions - Conversation context from Supabase Vector for better relevance
+- ✅ **NEW**: OpenAI Function Calling - Structured AI responses with confidence scoring and reasoning
+- ✅ **NEW**: Keyboard-Triggered Suggestions - Appear when keyboard opens, stable while typing
+- ✅ **NEW**: Codebase Cleanup - Removed all test components and demo files for production-ready code
+- 🐛 **KNOWN BUG**: Voice Transcription - Voice message transcription not working properly
 - ✅ Responsive UI that works on all devices
 - ✅ State management with Zustand
 - ✅ TypeScript type safety throughout

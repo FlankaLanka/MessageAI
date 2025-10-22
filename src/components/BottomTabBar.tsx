@@ -7,6 +7,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalization } from '../hooks/useLocalization';
 
 interface BottomTabBarProps {
   activeTab: 'messages' | 'profile';
@@ -17,6 +18,8 @@ const { width: screenWidth } = Dimensions.get('window');
 const isSmallScreen = screenWidth < 400;
 
 export default function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProps) {
+  const { t } = useLocalization();
+  
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.tabBar}>
@@ -28,7 +31,7 @@ export default function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProp
             💬
           </Text>
           <Text style={[styles.tabLabel, activeTab === 'messages' && styles.activeTabLabel]}>
-            Messages
+            {t('messages')}
           </Text>
         </TouchableOpacity>
 
@@ -40,7 +43,7 @@ export default function BottomTabBar({ activeTab, onTabPress }: BottomTabBarProp
             👤
           </Text>
           <Text style={[styles.tabLabel, activeTab === 'profile' && styles.activeTabLabel]}>
-            Profile
+            {t('profile')}
           </Text>
         </TouchableOpacity>
       </View>

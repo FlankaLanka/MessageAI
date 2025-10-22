@@ -16,18 +16,23 @@ import { useStore } from '../../store/useStore';
 import { UserService } from '../../services/users';
 import { MediaService } from '../../services/media';
 import { AuthService } from '../../services/auth';
-import { notificationService } from '../../services/notifications';
-import { presenceService } from '../../services/presence';
+import { useLocalization } from '../../hooks/useLocalization';
+import LanguageSelector from '../../components/LanguageSelector';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isSmallScreen = screenHeight < 700;
 
+interface ProfileScreenProps {
+  // No longer needed - settings are combined
+}
+
 export default function ProfileScreen() {
   const { user, setUser } = useStore();
+  const { t } = useLocalization();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [isPinging, setIsPinging] = useState(false);
+  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -387,48 +392,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handlePingNotification = async () => {
-    try {
-      setIsPinging(true);
-      await notificationService.sendPingNotification();
-      Alert.alert('Ping Sent!', 'You should receive a test notification shortly.');
-    } catch (error) {
-      console.error('Error sending ping notification:', error);
-      Alert.alert('Error', 'Failed to send ping notification. Please check your notification permissions.');
-    } finally {
-      setIsPinging(false);
-    }
-  };
-
-  const handlePresenceUpdate = async () => {
-    try {
-      await presenceService.forceUpdatePresence();
-      Alert.alert('Presence Updated!', 'Your presence status has been manually updated. Check the console for details.');
-    } catch (error) {
-      console.error('Error updating presence:', error);
-      Alert.alert('Error', 'Failed to update presence status.');
-    }
-  };
-
-  const handleTestLocalNotification = async () => {
-    try {
-      setIsPinging(true);
-      
-      // Use the simplified local test function
-      const success = await notificationService.testLocalNotification();
-      
-      if (success) {
-        Alert.alert('Test Sent!', 'You should receive a local notification shortly. This works in Expo Go!');
-      } else {
-        Alert.alert('Test Failed', 'Failed to send local notification. Check the console for error details.');
-      }
-    } catch (error) {
-      console.error('Error sending local test notification:', error);
-      Alert.alert('Error', 'Failed to send local test notification. Check the console for details.');
-    } finally {
-      setIsPinging(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -564,34 +527,16 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.pingButton, isPinging && styles.pingButtonDisabled]}
-            onPress={handlePingNotification}
-            disabled={isPinging || isSaving}
-          >
-            <Text style={styles.pingButtonText}>
-              {isPinging ? 'Sending...' : '🔔 Test Notification'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.pingButton, isPinging && styles.pingButtonDisabled]}
-            onPress={handleTestLocalNotification}
-            disabled={isPinging || isSaving}
-          >
-            <Text style={styles.pingButtonText}>
-              {isPinging ? 'Sending...' : '📱 Local Test'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.pingButton}
-            onPress={handlePresenceUpdate}
+            style={styles.settingsButton}
+            onPress={() => setShowLanguageSelector(true)}
             disabled={isSaving}
           >
-            <Text style={styles.pingButtonText}>
-              🔄 Update Presence
+            <Text style={styles.settingsButtonText}>
+              🌍 {t('settings')} & {t('translationSettings')}
             </Text>
           </TouchableOpacity>
+
+
 
           <TouchableOpacity
             style={styles.deleteButton}
@@ -602,6 +547,13 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Language Selector Modal */}
+      <LanguageSelector
+        visible={showLanguageSelector}
+        onClose={() => setShowLanguageSelector(false)}
+      />
+
     </SafeAreaView>
   );
 }
@@ -777,6 +729,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#a8d5a8',
   },
   pingButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settingsButton: {
+    backgroundColor: '#34C759',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  settingsButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

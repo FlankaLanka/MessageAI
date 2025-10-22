@@ -55,6 +55,37 @@ class SQLiteService {
       console.log('audioSize column already exists or error adding:', error);
     }
 
+    // Add new translation structure columns (migration)
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN originalText TEXT;`);
+    } catch (error) {
+      console.log('originalText column already exists or error adding:', error);
+    }
+
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN originalLang TEXT;`);
+    } catch (error) {
+      console.log('originalLang column already exists or error adding:', error);
+    }
+
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN translations TEXT;`);
+    } catch (error) {
+      console.log('translations column already exists or error adding:', error);
+    }
+
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN transcription TEXT;`);
+    } catch (error) {
+      console.log('transcription column already exists or error adding:', error);
+    }
+
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN transcriptionLang TEXT;`);
+    } catch (error) {
+      console.log('transcriptionLang column already exists or error adding:', error);
+    }
+
     // Create users table
     await this.db.execAsync(`
       CREATE TABLE IF NOT EXISTS users (
@@ -99,11 +130,38 @@ class SQLiteService {
       );
     `);
 
+    // Create cultural hints cache table
+    await this.db.execAsync(`
+      CREATE TABLE IF NOT EXISTS cultural_hints_cache (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        language TEXT NOT NULL,
+        hints TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        UNIQUE(text, language)
+      );
+    `);
+
+    // Create translation queue table
+    await this.db.execAsync(`
+      CREATE TABLE IF NOT EXISTS translation_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        messageId TEXT NOT NULL,
+        text TEXT NOT NULL,
+        targetLanguage TEXT NOT NULL,
+        sourceLanguage TEXT,
+        isVoiceMessage INTEGER DEFAULT 0,
+        audioUri TEXT,
+        timestamp INTEGER NOT NULL
+      );
+    `);
+
     // Create indexes for better performance
     await this.db.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_messages_chatId ON messages(chatId);
       CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
       CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);
+      CREATE INDEX IF NOT EXISTS idx_cultural_hints_lookup ON cultural_hints_cache(text, language, timestamp);
     `);
 
     console.log('SQLite tables created successfully');
@@ -114,12 +172,12 @@ class SQLiteService {
     if (!this.db) throw new Error('Database not initialized');
 
     try {
-      // First try with all columns (including audio)
+      // First try with all columns (including audio and translation fields)
       try {
         await this.db.runAsync(
           `INSERT OR REPLACE INTO messages 
-           (id, chatId, senderId, text, imageUrl, audioUrl, audioDuration, audioSize, timestamp, status, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, chatId, senderId, text, imageUrl, audioUrl, audioDuration, audioSize, originalText, originalLang, translations, transcription, transcriptionLang, timestamp, status, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             message.id,
             message.chatId,
@@ -129,6 +187,11 @@ class SQLiteService {
             message.audioUrl || null,
             message.audioDuration || null,
             message.audioSize || null,
+            message.originalText || message.text || null,
+            message.originalLang || null,
+            message.translations ? JSON.stringify(message.translations) : null,
+            message.transcription || null,
+            message.transcriptionLang || null,
             message.timestamp,
             message.status,
             Date.now(),
@@ -174,18 +237,44 @@ class SQLiteService {
         [chatId, limit, offset]
       );
 
-      return result.map(row => ({
-        id: row.id as string,
-        chatId: row.chatId as string,
-        senderId: row.senderId as string,
-        text: row.text as string | undefined,
-        imageUrl: row.imageUrl as string | undefined,
-        audioUrl: (row as any).audioUrl as string | undefined,
-        audioDuration: (row as any).audioDuration as number | undefined,
-        audioSize: (row as any).audioSize as number | undefined,
-        timestamp: row.timestamp as number,
-        status: row.status as 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
-      }));
+      return result.map(row => {
+        const message: Message = {
+          id: row.id as string,
+          chatId: row.chatId as string,
+          senderId: row.senderId as string,
+          text: row.text as string | undefined,
+          imageUrl: row.imageUrl as string | undefined,
+          audioUrl: (row as any).audioUrl as string | undefined,
+          audioDuration: (row as any).audioDuration as number | undefined,
+          audioSize: (row as any).audioSize as number | undefined,
+          timestamp: row.timestamp as number,
+          status: row.status as 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
+        };
+
+        // Parse translation and cultural hint fields if they exist
+        if ((row as any).originalLang) {
+          message.originalLang = (row as any).originalLang as string;
+        }
+        if ((row as any).translations) {
+          try {
+            message.translations = JSON.parse((row as any).translations as string);
+          } catch (error) {
+            console.error('Error parsing translations JSON:', error);
+          }
+        }
+        if ((row as any).culturalHints) {
+          try {
+            message.culturalHints = JSON.parse((row as any).culturalHints as string);
+          } catch (error) {
+            console.error('Error parsing culturalHints JSON:', error);
+          }
+        }
+        if ((row as any).transcription) {
+          message.transcription = (row as any).transcription as string;
+        }
+
+        return message;
+      });
     } catch (error) {
       console.error('Error getting messages from SQLite:', error);
       throw error;
@@ -217,15 +306,44 @@ class SQLiteService {
          ORDER BY timestamp ASC`
       );
 
-      return result.map(row => ({
-        id: row.id as string,
-        chatId: row.chatId as string,
-        senderId: row.senderId as string,
-        text: row.text as string | undefined,
-        imageUrl: row.imageUrl as string | undefined,
-        timestamp: row.timestamp as number,
-        status: row.status as 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
-      }));
+      return result.map(row => {
+        const message: Message = {
+          id: row.id as string,
+          chatId: row.chatId as string,
+          senderId: row.senderId as string,
+          text: row.text as string | undefined,
+          imageUrl: row.imageUrl as string | undefined,
+          audioUrl: (row as any).audioUrl as string | undefined,
+          audioDuration: (row as any).audioDuration as number | undefined,
+          audioSize: (row as any).audioSize as number | undefined,
+          timestamp: row.timestamp as number,
+          status: row.status as 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
+        };
+
+        // Parse translation and cultural hint fields if they exist
+        if ((row as any).originalLang) {
+          message.originalLang = (row as any).originalLang as string;
+        }
+        if ((row as any).translations) {
+          try {
+            message.translations = JSON.parse((row as any).translations as string);
+          } catch (error) {
+            console.error('Error parsing translations JSON:', error);
+          }
+        }
+        if ((row as any).culturalHints) {
+          try {
+            message.culturalHints = JSON.parse((row as any).culturalHints as string);
+          } catch (error) {
+            console.error('Error parsing culturalHints JSON:', error);
+          }
+        }
+        if ((row as any).transcription) {
+          message.transcription = (row as any).transcription as string;
+        }
+
+        return message;
+      });
     } catch (error) {
       console.error('Error getting queued messages from SQLite:', error);
       throw error;

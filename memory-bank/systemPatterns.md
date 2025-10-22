@@ -1,7 +1,7 @@
 # MessageAI - System Patterns
 
 ## Architecture Overview
-MessageAI follows a client-server architecture with Firebase as the backend and React Native as the client. The system emphasizes offline resilience, real-time synchronization, and cross-platform compatibility.
+MessageAI follows a client-server architecture with Firebase as the backend and React Native as the client. The system emphasizes offline resilience, real-time synchronization, cross-platform compatibility, **AI-powered translation with cultural context detection**, and **comprehensive localization support**.
 
 ## Key Technical Decisions
 
@@ -14,26 +14,71 @@ MessageAI follows a client-server architecture with Firebase as the backend and 
 - **Auth**: Google, Email/Password, Phone verification
 - **Firestore**: Primary database for messages, users, groups
 - **Realtime DB**: Presence and typing indicators
-- **Storage**: Image and media files
+- **Storage**: Image, media files, and voice messages
 - **Cloud Functions**: Push notification triggers
 
-### 3. State Management with Zustand
+### 3. Enhanced AI Translation System
+- **OpenAI Integration**: GPT-4o for translation and cultural hints, Whisper for voice transcription
+- **Enhanced Cultural Hints Detection**: Advanced AI-powered detection for slangs, idioms, and cultural references
+- **Pattern Matching System**: Built-in language-specific databases for common cultural terms
+- **Translation Service**: Real-time, on-demand translation with enhanced cultural context detection
+- **Localization Service**: Multi-language support for 12 languages with native names
+- **Pattern**: User-controlled translation preferences with inline UI and unified language settings
+- **Benefits**: Advanced cultural context detection, confidence scoring, quality validation, offline translation support, real-time language switching
+
+### 4. Smart Message Suggestions System
+- **LLM Integration**: GPT-4o with function calling for intelligent suggestion generation
+- **RAG Context**: Supabase Vector for conversation history and context retrieval
+- **Speaker Awareness**: AI understands who is speaking and provides role-appropriate suggestions
+- **Function Calling**: Structured AI responses with confidence scoring and reasoning
+- **Keyboard Triggered**: Suggestions appear when keyboard opens, stable while typing
+- **Top 3 Focus**: Simplified to show only the 3 most likely responses
+- **Pattern**: Context-aware suggestions based on conversation flow and speaker perspective
+- **Benefits**: Intelligent message completions, conversation-aware suggestions, speaker-appropriate responses
+
+### 5. State Management with Zustand
 - **Rationale**: Lightweight, TypeScript-friendly state management
 - **Pattern**: Centralized store with actions and selectors
 - **Benefits**: Simple API, good performance, easy testing
 
-### 4. Platform-Specific Storage
+### 6. Platform-Specific Storage
 - **Storage**: SQLite for offline message caching and queue
 - **Pattern**: Local-first with sync to Firebase, Expo Go compatible
 - **Benefits**: Works offline, fast local queries, data persistence, optimized for Expo Go
 
-### 5. Expo Go Development Environment
+### 7. Expo Go Development Environment
 - **Focus**: Optimized for Expo Go development and testing
 - **Storage**: SQLite for offline message caching and queue
 - **Gestures**: Native swipe gestures for chat management
 - **Alerts**: Native Alert.alert() for user feedback
 - **Pattern**: Expo Go compatible APIs and components
 - **Benefits**: Fast development cycle with real device testing
+
+### 8. Enhanced AI Translation Architecture
+- **Translation Service**: Real-time, on-demand translation using OpenAI GPT-4o
+- **Enhanced Cultural Context Detection**: Advanced AI-powered detection for slangs, idioms, and cultural references
+- **Pattern Matching System**: Built-in language-specific databases for common cultural terms
+- **Voice Transcription**: OpenAI Whisper for voice message transcription
+- **Pattern**: Inline UI with translation buttons and displays within message bubbles
+- **Benefits**: Advanced cultural context detection, confidence scoring, quality validation, user-controlled translation, offline support
+- **Language Synchronization**: Translation language automatically syncs with user's language preference
+- **Quality Control**: Hint validation, statistics, and performance metrics
+
+### 8. Localization System
+- **Localization Service**: Centralized translation management for 12 languages
+- **useLocalization Hook**: Easy access to translations with parameter formatting
+- **Language Selector**: Beautiful modal interface for language selection
+- **Pattern**: Real-time language switching with persistent user preferences
+- **Benefits**: Multi-language support, native language names, automatic UI updates
+
+### 9. Unified Settings Architecture
+- **Combined Interface**: Settings and Language Settings in single modal
+- **Language Synchronization**: UI language and translation language stay in sync
+- **Store Integration**: User language preference automatically updates translation language
+- **Pattern**: Single settings interface with comprehensive language options
+- **Benefits**: Simplified UX, synchronized preferences, cleaner interface
+- **Rebranding**: Changed from "Translation Settings" to "Language Settings" for better clarity
+- **Removed Features**: Eliminated auto-translate feature and redundant language selection
 
 ## Component Relationships
 
@@ -48,6 +93,9 @@ App
 │   ├── GroupService (Group management)
 │   ├── NotificationService (Push notifications)
 │   ├── SyncService (Offline sync)
+│   ├── TranslationService (OpenAI translation + cultural hints)
+│   ├── CulturalHintsService (Cultural context detection)
+│   ├── TranslationIntegrationService (Auto-translation flow)
 │   ├── NetworkService (Network detection)
 │   ├── UserService (Profile management)
 │   ├── MediaService (Image upload)
@@ -103,6 +151,15 @@ App
    
 9. **Image Upload Flow**
    - User selects image → Compress and upload to Firebase Storage → Update profile with URL
+   
+10. **AI Translation Flow**
+    - Incoming message → Check user's default language → Translate with OpenAI → Display with cultural hints
+    
+11. **Cultural Context Detection Flow**
+    - Text analysis → Identify slang/idioms → Generate explanations → Display with info buttons
+    
+12. **Voice Message Translation Flow**
+    - Voice message → Whisper transcription → GPT-4o translation → Cultural hints → Display
    
 10. **Account Deletion Flow**
     - User confirms deletion → Attempt deletion → If `auth/requires-recent-login` → Prompt for password → Re-authenticate → Delete from Firebase Auth → Mark as deleted in Firestore → Auto sign out → Redirect to login
@@ -437,6 +494,38 @@ interface Chat {
 - **Implementation**: Conditional field inclusion using spread operator for optional fields
 - **Benefits**: Prevents Firestore "invalid data" errors, ensures clean document structure
 - **Example**: `...(firebaseUser.phoneNumber && { phoneNumber: firebaseUser.phoneNumber })`
+
+### 25. Enhanced Cultural Hints Detection System
+- **Pattern**: Multi-layer cultural context detection with AI and pattern matching
+- **Implementation**: 
+  - AI-powered detection using OpenAI GPT-4o for complex cultural context
+  - Pattern matching for common terms with language-specific databases
+  - Confidence scoring and quality validation for hint accuracy
+  - Comprehensive service with statistics and analytics
+- **Benefits**: 
+  - Advanced detection of slangs, idioms, and cultural references
+  - Language-specific cultural understanding
+  - Quality control with validation and scoring
+  - Performance optimization with intelligent caching
+- **Key Features**:
+  - `enhancedCulturalHintsService` for advanced cultural analysis
+  - `culturalHintsService` with AI-powered generation
+  - Pattern matching for English, Spanish, French with extensibility
+  - Quality validation and confidence scoring
+  - Comprehensive examples and usage patterns
+
+### 26. Translation Settings Optimization
+- **Pattern**: Unified language settings with simplified UX
+- **Implementation**: 
+  - Removed auto-translate feature for cleaner interface
+  - Unified language selection eliminating redundancy
+  - Rebranded "Translation Settings" to "Language Settings"
+  - Single language selector for both UI and translation language
+- **Benefits**: 
+  - Simplified user experience
+  - Eliminated confusion from duplicate settings
+  - Cleaner, more intuitive interface
+  - Synchronized language preferences
 
 ## Web/Mobile Compatibility Requirements
 

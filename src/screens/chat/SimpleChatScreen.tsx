@@ -11,7 +11,8 @@ import {
   Alert,
   Dimensions,
   Image,
-  Modal
+  Modal,
+  Keyboard
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../store/useStore';
@@ -30,8 +31,12 @@ import ReadReceipt from '../../components/ReadReceipt';
 import VoiceRecorder from '../../components/VoiceRecorder';
 import VoiceMessageBubble from '../../components/VoiceMessageBubble';
 import VoiceMessagePreview from '../../components/VoiceMessagePreview';
+import { TranslationButton } from '../../components/TranslationButton';
+import { TranslatedMessageDisplay } from '../../components/TranslatedMessageDisplay';
+import SmartSuggestions from '../../components/SmartSuggestions';
 import { ReadReceiptService, UserReadStatus } from '../../services/readReceipts';
 import { audioService } from '../../services/audio';
+import { supabaseVectorService } from '../../services/supabaseVector';
 
 interface SimpleChatScreenProps {
   chatId: string;
@@ -40,7 +45,14 @@ interface SimpleChatScreenProps {
 }
 
 export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToUserProfile }: SimpleChatScreenProps) {
-  const { user, messages, setMessages, addMessage, updateMessage, updateChatLastMessage } = useStore();
+  const { 
+    user, 
+    messages, 
+    setMessages, 
+    addMessage, 
+    updateMessage, 
+    updateChatLastMessage
+  } = useStore();
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [chat, setChat] = useState<Chat | null>(null);
@@ -52,6 +64,42 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
   const [readStatus, setReadStatus] = useState<Record<string, UserReadStatus>>({});
+  const [messageTranslations, setMessageTranslations] = useState<Record<string, { 
+    text: string; 
+    language: string; 
+    culturalHints?: any[]; 
+    intelligentProcessing?: any;
+  }>>({});
+  
+  // Smart suggestions state
+  const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
+  
+  // Translation handlers
+  const handleTranslationComplete = (
+    messageId: string, 
+    translation: string, 
+    language: string, 
+    culturalHints?: any[], 
+    intelligentProcessing?: any
+  ) => {
+    setMessageTranslations(prev => ({
+      ...prev,
+      [messageId]: { 
+        text: translation, 
+        language, 
+        culturalHints, 
+        intelligentProcessing 
+      }
+    }));
+  };
+
+  const handleCloseTranslation = (messageId: string) => {
+    setMessageTranslations(prev => {
+      const newTranslations = { ...prev };
+      delete newTranslations[messageId];
+      return newTranslations;
+    });
+  };
   
   // Voice recording state
   const [recordedAudio, setRecordedAudio] = useState<{uri: string, duration: number} | null>(null);
@@ -68,9 +116,10 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     if (!user) return;
 
     // Set up real-time listener for messages with offline support
-    const unsubscribe = MessageService.onMessagesUpdate(chatId, (newMessages) => {
+    const unsubscribe = MessageService.onMessagesUpdate(chatId, async (newMessages) => {
       setMessages(newMessages);
       setIsLoading(false);
+      
       
       // Mark messages as read when user views the chat
       markMessagesAsRead(newMessages);
@@ -183,6 +232,19 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       
       // Update chat list immediately with the new message
       updateChatLastMessage(chatId, sentMessage);
+      
+      // Store message in Supabase Vector for RAG context
+      try {
+        await supabaseVectorService.storeMessage(chatId, messageText, {
+          senderId: user.uid,
+          senderName: user.displayName,
+          timestamp: sentMessage.timestamp
+        });
+        console.log('Stored message in Supabase Vector for RAG context');
+      } catch (vectorError) {
+        console.warn('Failed to store message in Supabase Vector:', vectorError);
+        // Don't fail the message send if vector storage fails
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message');
@@ -199,6 +261,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     setRecordedAudio(null);
     setShowPreviewModal(false);
   };
+
 
   const handleSendVoiceMessage = async () => {
     if (!recordedAudio || !user) return;
@@ -260,6 +323,28 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       await presenceService.setTypingStatus(chatId, user.uid, user.displayName, false);
     }
   };
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: string) => {
+    setNewMessage(suggestion);
+    setShowSmartSuggestions(false);
+  };
+
+  // Show suggestions when keyboard opens
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setShowSmartSuggestions(true);
+    });
+
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setShowSmartSuggestions(false);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const renderHeader = () => {
     if (!chat) return null;
@@ -409,22 +494,57 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             onPause={() => handlePauseVoiceMessage()}
             isPlaying={playingMessageId === item.id}
             currentTime={0}
+            message={item}
+            senderName={isGroupChat ? senderName : undefined}
+            senderPhotoURL={item.senderPhotoURL}
           />
         ) : (
           /* Text Message Bubble */
           <View style={[
-            styles.messageBubble,
-            isOwnMessage ? styles.ownBubble : styles.otherBubble
+            styles.messageWrapper,
+            isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
           ]}>
-            <Text style={[
-              styles.messageText,
-              isOwnMessage ? styles.ownText : styles.otherText
+            <View style={[
+              styles.messageBubble,
+              isOwnMessage ? styles.ownBubble : styles.otherBubble
             ]}>
-              {item.text}
-            </Text>
-            <Text style={styles.timestamp}>
-              {new Date(item.timestamp).toLocaleTimeString()}
-            </Text>
+              {/* Original Message */}
+              <Text style={[
+                styles.messageText,
+                isOwnMessage ? styles.ownText : styles.otherText
+              ]}>
+                {item.text}
+              </Text>
+              
+              {/* Enhanced Inline Translation */}
+              {messageTranslations[item.id] && (
+                <TranslatedMessageDisplay
+                  translation={messageTranslations[item.id].text}
+                  language={messageTranslations[item.id].language}
+                  isOwn={isOwnMessage}
+                  onClose={() => handleCloseTranslation(item.id)}
+                  culturalHints={messageTranslations[item.id].culturalHints}
+                  intelligentProcessing={messageTranslations[item.id].intelligentProcessing}
+                />
+              )}
+              
+              <View style={styles.messageBottomRow}>
+                <Text style={styles.timestamp}>
+                  {new Date(item.timestamp).toLocaleTimeString()}
+                </Text>
+                {/* Enhanced Translation Button - Inline */}
+                {!messageTranslations[item.id] && (
+                  <TranslationButton
+                    messageId={item.id}
+                    originalText={item.text || ''}
+                    onTranslationComplete={handleTranslationComplete}
+                    isOwn={isOwnMessage}
+                    message={item}
+                    chatMessages={messages}
+                  />
+                )}
+              </View>
+            </View>
           </View>
         )}
         
@@ -466,6 +586,18 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         <TypingIndicator 
           typingUsers={typingUsers} 
           isVisible={typingUsers.length > 0} 
+        />
+
+        {/* Smart Suggestions */}
+        <SmartSuggestions
+          currentMessage={newMessage}
+          chatId={chatId}
+          recentMessages={messages.filter(m => m.chatId === chatId)}
+          currentUserId={user?.uid || ''}
+          currentUserName={user?.displayName || 'User'}
+          onSuggestionSelect={handleSuggestionSelect}
+          onClose={() => setShowSmartSuggestions(false)}
+          visible={showSmartSuggestions}
         />
 
         <View style={styles.inputContainer}>
@@ -815,5 +947,82 @@ const styles = StyleSheet.create({
   },
   addMembersButtonTextSmall: {
     fontSize: 16,
+  },
+  // New styles for inline translation
+  messageWrapper: {
+    marginVertical: 2,
+  },
+  ownMessageWrapper: {
+    alignItems: 'flex-end',
+  },
+  otherMessageWrapper: {
+    alignItems: 'flex-start',
+  },
+  messageBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  // Inline translation styles
+  inlineTranslation: {
+    marginTop: 8,
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  ownInlineTranslation: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  otherInlineTranslation: {
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  translationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  translationLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    opacity: 0.8,
+  },
+  ownTranslationLabel: {
+    color: '#BFDBFE',
+  },
+  otherTranslationLabel: {
+    color: '#6B7280',
+  },
+  closeTranslationButton: {
+    padding: 2,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeTranslationText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  ownCloseText: {
+    color: '#BFDBFE',
+  },
+  otherCloseText: {
+    color: '#6B7280',
+  },
+  translationText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  ownTranslationText: {
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  otherTranslationText: {
+    color: '#374151',
   },
 });

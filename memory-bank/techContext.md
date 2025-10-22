@@ -20,6 +20,18 @@
 - **Cloud Functions**: Serverless backend functions
 - **Expo Push Notifications**: Mobile push notifications
 
+### AI Translation Technologies
+- **OpenAI GPT-4o**: Text translation and cultural context detection
+- **OpenAI Whisper API**: Voice message transcription
+- **OpenAI TTS API**: Text-to-speech for translated audio (optional)
+- **Cultural Context Detection**: AI-powered slang, idiom, and cultural reference identification
+- **Simple Translation Service**: Real-time, on-demand translation with OpenAI integration
+- **Localization Service**: Multi-language support for 12 languages with native names
+- **Translation UI Components**: Inline translation buttons and displays within message bubbles
+- **Language Synchronization**: Translation language automatically syncs with user's language preference
+- **Unified Settings Interface**: Combined Settings & Translation Settings in single modal
+- **Store Integration**: User language preference automatically updates translation language
+
 ### Development Tools
 - **Expo CLI**: Development and build commands
 - **Firebase CLI**: Backend configuration and deployment
@@ -36,7 +48,7 @@ npm install -g firebase-tools
 npm install -g eas-cli
 
 # Development dependencies
-npm install firebase expo-router expo-notifications expo-image-picker expo-sqlite zustand react-native-gifted-chat
+npm install firebase expo-router expo-notifications expo-image-picker expo-sqlite zustand react-native-gifted-chat expo-av openai
 ```
 
 ### Environment Configuration
@@ -49,6 +61,7 @@ EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your_bucket
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 EXPO_PUBLIC_FIREBASE_APP_ID=your_app_id
 EXPO_PUBLIC_FIREBASE_DATABASE_URL=your_database_url
+EXPO_PUBLIC_OPENAI_API_KEY=your_openai_api_key
 ```
 
 ### Firebase Project Setup

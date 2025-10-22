@@ -1,0 +1,290 @@
+import { Translation, CulturalHint, Message } from '../types';
+import { ragTranslationService, RAGContext, UserPreferences, RAGTranslationResult } from './ragTranslation';
+import { simpleTranslationService } from './simpleTranslation';
+import { culturalHintsService } from './culturalHints';
+
+/**
+ * Enhanced Translation Service
+ * Integrates RAG-based intelligent translation with existing MessageAI translation system
+ * Provides seamless fallback and comprehensive translation capabilities
+ */
+
+export interface EnhancedTranslationOptions {
+  useRAG?: boolean;
+  useCulturalHints?: boolean;
+  useSimpleTranslation?: boolean;
+  contextLimit?: number;
+  confidenceThreshold?: number;
+}
+
+export interface EnhancedTranslationResult {
+  translation: string;
+  culturalHints: CulturalHint[];
+  intelligentProcessing?: {
+    intent: string;
+    tone: string;
+    topic: string;
+    entities: string[];
+    language_detected: string;
+    confidence?: number;
+  };
+  method: 'rag' | 'simple' | 'fallback';
+  contextUsed?: string[];
+}
+
+class EnhancedTranslationService {
+  private defaultOptions: EnhancedTranslationOptions = {
+    useRAG: true,
+    useCulturalHints: true,
+    useSimpleTranslation: true,
+    contextLimit: 10,
+    confidenceThreshold: 0.7
+  };
+
+  /**
+   * Main translation method with intelligent routing
+   */
+  async translateMessage(
+    message: Message,
+    targetLanguage: string,
+    options: EnhancedTranslationOptions = {}
+  ): Promise<EnhancedTranslationResult> {
+    const opts = { ...this.defaultOptions, ...options };
+    
+    try {
+      // Step 1: Prepare RAG context from conversation history
+      const ragContext = await this.prepareRAGContext(message, opts.contextLimit || 10);
+      
+      // Step 2: Set up user preferences
+      const userPreferences: UserPreferences = {
+        target_language: targetLanguage,
+        tone: 'casual',
+        context_awareness: true,
+        cultural_hints: opts.useCulturalHints
+      };
+
+      // Step 3: Try RAG translation first if enabled
+      if (opts.useRAG && ragContext.messages.length > 0) {
+        try {
+          const ragResult = await ragTranslationService.translateWithRAG(
+            message.text || '',
+            ragContext,
+            userPreferences
+          );
+
+          // Check confidence threshold
+          if (ragResult.intelligent_processing.confidence && 
+              ragResult.intelligent_processing.confidence >= (opts.confidenceThreshold || 0.7)) {
+            return {
+              translation: ragResult.translation,
+              culturalHints: ragResult.cultural_hints || [],
+              intelligentProcessing: ragResult.intelligent_processing,
+              method: 'rag',
+              contextUsed: ragResult.context_used
+            };
+          }
+        } catch (error) {
+          console.warn('RAG translation failed, falling back:', error);
+        }
+      }
+
+      // Step 4: Fallback to simple translation
+      if (opts.useSimpleTranslation) {
+        try {
+          const simpleResult = await this.performSimpleTranslation(
+            message,
+            targetLanguage,
+            opts.useCulturalHints || false
+          );
+          
+          return {
+            ...simpleResult,
+            method: 'simple'
+          };
+        } catch (error) {
+          console.warn('Simple translation failed:', error);
+        }
+      }
+
+      // Step 5: Final fallback
+      return this.createFallbackResult(message, targetLanguage);
+
+    } catch (error) {
+      console.error('Enhanced translation error:', error);
+      return this.createFallbackResult(message, targetLanguage);
+    }
+  }
+
+  /**
+   * Prepare RAG context from conversation history using Supabase Vector
+   */
+  private async prepareRAGContext(message: Message, limit: number): Promise<RAGContext> {
+    try {
+      // Use Supabase Vector to retrieve relevant conversation context
+      const ragTranslationService = (await import('./ragTranslation')).ragTranslationService;
+      const context = await ragTranslationService.retrieveConversationContext(
+        message.chatId,
+        message.text || '',
+        limit
+      );
+
+      return context;
+    } catch (error) {
+      console.error('Error preparing RAG context:', error);
+      return { messages: [] };
+    }
+  }
+
+  /**
+   * Perform simple translation with cultural hints
+   */
+  private async performSimpleTranslation(
+    message: Message,
+    targetLanguage: string,
+    includeCulturalHints: boolean
+  ): Promise<EnhancedTranslationResult> {
+    const text = message.text || '';
+    
+    if (includeCulturalHints) {
+      const result = await simpleTranslationService.translateWithCulturalHints(
+        text,
+        targetLanguage
+      );
+      
+      return {
+        translation: result.translation,
+        culturalHints: result.culturalHints,
+        method: 'simple'
+      };
+    } else {
+      const translation = await simpleTranslationService.translateText(text, targetLanguage);
+      
+      return {
+        translation,
+        culturalHints: [],
+        method: 'simple'
+      };
+    }
+  }
+
+  /**
+   * Create fallback result when all translation methods fail
+   */
+  private createFallbackResult(message: Message, targetLanguage: string): EnhancedTranslationResult {
+    return {
+      translation: message.text || '',
+      culturalHints: [],
+      method: 'fallback'
+    };
+  }
+
+  /**
+   * Translate voice message with transcription
+   */
+  async translateVoiceMessage(
+    message: Message,
+    targetLanguage: string,
+    options: EnhancedTranslationOptions = {}
+  ): Promise<EnhancedTranslationResult> {
+    // First, ensure we have transcription
+    if (!message.transcription) {
+      throw new Error('Voice message transcription not available');
+    }
+
+    // Create a text message from transcription for translation
+    const textMessage: Message = {
+      ...message,
+      text: message.transcription
+    };
+
+    return this.translateMessage(textMessage, targetLanguage, options);
+  }
+
+  /**
+   * Batch translate multiple messages
+   */
+  async translateMessages(
+    messages: Message[],
+    targetLanguage: string,
+    options: EnhancedTranslationOptions = {}
+  ): Promise<EnhancedTranslationResult[]> {
+    const results: EnhancedTranslationResult[] = [];
+    
+    for (const message of messages) {
+      try {
+        const result = await this.translateMessage(message, targetLanguage, options);
+        results.push(result);
+      } catch (error) {
+        console.error(`Translation failed for message ${message.id}:`, error);
+        results.push(this.createFallbackResult(message, targetLanguage));
+      }
+    }
+    
+    return results;
+  }
+
+  /**
+   * Get translation statistics
+   */
+  async getTranslationStats(): Promise<{
+    totalTranslations: number;
+    ragTranslations: number;
+    simpleTranslations: number;
+    fallbackTranslations: number;
+    averageConfidence: number;
+  }> {
+    // This would typically query a database for translation statistics
+    // For now, return mock data
+    return {
+      totalTranslations: 0,
+      ragTranslations: 0,
+      simpleTranslations: 0,
+      fallbackTranslations: 0,
+      averageConfidence: 0.8
+    };
+  }
+
+  /**
+   * Clear translation cache
+   */
+  async clearCache(): Promise<void> {
+    try {
+      await culturalHintsService.clearExpiredCache();
+      console.log('Translation cache cleared');
+    } catch (error) {
+      console.error('Error clearing translation cache:', error);
+    }
+  }
+
+  /**
+   * Check if enhanced translation is available
+   */
+  isAvailable(): boolean {
+    return ragTranslationService.isAvailable() || simpleTranslationService.isAvailable();
+  }
+
+  /**
+   * Get available languages
+   */
+  getAvailableLanguages() {
+    return ragTranslationService.getAvailableLanguages();
+  }
+
+  /**
+   * Update translation options
+   */
+  updateOptions(newOptions: Partial<EnhancedTranslationOptions>): void {
+    this.defaultOptions = { ...this.defaultOptions, ...newOptions };
+  }
+
+  /**
+   * Get current options
+   */
+  getOptions(): EnhancedTranslationOptions {
+    return { ...this.defaultOptions };
+  }
+}
+
+// Export singleton instance
+export const enhancedTranslationService = new EnhancedTranslationService();
+export default enhancedTranslationService;

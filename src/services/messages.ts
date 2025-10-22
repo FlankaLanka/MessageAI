@@ -32,6 +32,7 @@ export class MessageService {
   // Send a message with offline support
   static async sendMessage(chatId: string, senderId: string, text: string, senderName?: string, senderPhotoURL?: string): Promise<Message> {
     const messageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     const message: Message = {
       id: messageId,
       chatId,
@@ -197,6 +198,7 @@ export class MessageService {
         for (const message of messages) {
           await syncService.queueMessage(message);
         }
+
 
         callback(messages);
       }, (error) => {

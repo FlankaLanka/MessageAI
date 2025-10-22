@@ -180,6 +180,7 @@ export default function App() {
     // TODO: Implement direct chat creation
   };
 
+
   const renderScreen = () => {
     switch (currentScreen) {
       case 'login':

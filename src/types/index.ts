@@ -11,8 +11,24 @@ export interface User {
   lastSeen: number;
   pushToken?: string;
   isDeleted?: boolean;
+  defaultLanguage?: string;  // User's default translation language
   createdAt: number;
   updatedAt: number;
+}
+
+// Cultural hint types
+export interface CulturalHint {
+  term: string;                    // The term/phrase to highlight
+  type: 'slang' | 'idiom' | 'cultural' | 'reference';
+  explanation: string;              // Detailed cultural context
+  literalMeaning?: string;         // Optional literal translation
+}
+
+// Translation types
+export interface Translation {
+  lang: string;                 // Language code (e.g., 'EN', 'ZH', 'ES', 'FR')
+  text: string;                 // Translated text
+  culturalHints?: CulturalHint[];  // Hints for translated text
 }
 
 // Message types
@@ -29,6 +45,11 @@ export interface Message {
   timestamp: number;
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   chatId: string;
+  // Translation and cultural context fields
+  originalLang?: string;         // Language of original message
+  translations?: Translation[];  // Available translations
+  culturalHints?: CulturalHint[]; // Cultural hints for original text
+  transcription?: string;     // Voice message transcription
 }
 
 // Group types
