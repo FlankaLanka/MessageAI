@@ -30,12 +30,15 @@ The MVP must meet the following:
 7. User authentication (accounts & profiles).  
 8. Group chat with 3+ participants.  
 9. Message read receipts.  
-10. Push notifications (foreground working).  
+10. Push notifications (local notifications working with known bug).  
 11. **User Profile Management**: Profile editing, image upload, phone validation, account deletion.
 12. **iPhone-Style Interface**: Profile pictures in chat headers, group chat bubbles, online indicators.
 13. **Bottom Tab Navigation**: Messages and Profile tabs with proper state management.
 14. **Profile Viewing**: Tap profile pictures to view user details and start conversations.
-15. Deployment: Running on local emulator/simulator with Firebase backend (Expo Go or EAS build).
+15. **Voice Messaging**: WeChat-style voice message recording, playback, and Firebase Storage integration.
+16. **Typing Indicators**: Real-time typing status with animated triple dots and user names.
+17. **1-on-1 Chat System**: Direct messaging with user search and chat creation.
+18. Deployment: Running on local emulator/simulator with Firebase backend (Expo Go or EAS build).
 
 ---
 
@@ -54,16 +57,24 @@ The MVP must meet the following:
 | 10 | Account deletion | Soft delete preserves messages, user marked as "Deleted User" |
 | 11 | Profile viewing in chats | Tap profile pictures to view user details and start conversations |
 | 12 | Online status indicators | Green dots on profile pictures show real-time online status |
+| 13 | Voice messaging recording and playback | Voice messages record, upload to Firebase Storage, and play back correctly |
+| 14 | Voice message offline queueing | Voice messages queue locally when offline and sync when reconnected |
+| 15 | Read receipts with profile pictures | Facebook Messenger-style read receipts showing who read each message |
+| 16 | Typing indicators with user names | Real-time typing status with animated triple dots and user identification |
+| 17 | 1-on-1 chat creation and management | User search, direct chat creation, and conversation management |
+| 18 | Push notification bug (known issue) | Senders receive notifications of their own messages (needs future fix) |
 
 ---
 
 ## 5. Core Features
 ### Messaging
-- Text & image messages  
+- Text, image, and voice messages  
 - Real-time Firestore sync  
 - Offline queue (auto-resend when reconnected)  
 - Message state tracking (sending, sent, delivered, read)  
 - Optimistic UI for smooth UX  
+- Voice message recording and playback with Firebase Storage
+- Facebook Messenger-style read receipts with profile pictures
 
 ### Authentication & Profiles
 - Firebase Auth: Google, Email/Password  
@@ -80,18 +91,24 @@ The MVP must meet the following:
 
 ### Presence & Typing
 - Firebase Realtime DB for presence (`online/offline`)  
-- Typing indicator (triple dots) for active chats  
+- Typing indicator (triple dots) for active chats with user names  
 - Group-level list of active users  
+- Real-time typing status with animated triple dots
 
 ### Notifications
-- Expo Push Notifications for foreground/baseline alerts  
-- Triggered on new message via Cloud Function
+- Local notifications for Expo Go development (simplified implementation)
+- Triggers when messages are sent (text and voice)
+- **Known Bug**: Senders receive notifications of their own messages (needs future fix)
+- Test notification feature in Profile screen
 
 ### User Interface & Navigation
 - **Bottom Tab Navigation**: Messages and Profile tabs with proper state management
 - **iPhone-Style Chat Headers**: Profile pictures with online indicators
 - **Group Chat Bubbles**: Overlapping profile pictures for group participants
 - **Profile Modals**: Quick profile preview and full profile viewing
+- **Voice Message UI**: VoiceMessageBubble, VoiceRecorder, and VoiceMessagePreview components
+- **1-on-1 Chat System**: User search modal and direct chat creation
+- **Read Receipts UI**: Facebook Messenger-style read receipts with profile pictures
 - **Responsive Design**: Works on all screen sizes with SafeAreaView  
 
 ---
@@ -114,4 +131,9 @@ The MVP must meet the following:
 ✅ **iPhone-Style Interface**: Profile pictures, online indicators, group chat bubbles
 ✅ **Bottom Tab Navigation**: Messages and Profile tabs with proper state management
 ✅ **Profile Viewing**: Tap profile pictures to view user details and start conversations
+✅ **Voice Messaging**: WeChat-style voice messages with recording, playback, and Firebase Storage
+✅ **Read Receipts**: Facebook Messenger-style read receipts with profile pictures
+✅ **Typing Indicators**: Real-time typing status with animated triple dots and user names
+✅ **1-on-1 Chat System**: Direct messaging with user search and chat creation
+✅ **Local Notifications**: Simplified push notifications for Expo Go (with known bug)
 ✅ Deployed & tested on both iOS + Android devices
