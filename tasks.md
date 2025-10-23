@@ -9,11 +9,12 @@
 - [x] Initialize Expo project: `npx create-expo-app MessageAI`
 - [x] Install dependencies:
   ```bash
-  npm install firebase expo-router expo-notifications expo-image-picker expo-sqlite zustand react-native-gifted-chat
+  npm install firebase expo-router expo-notifications expo-image-picker expo-sqlite zustand react-native-gifted-chat expo-av expo-haptics expo-blur @supabase/supabase-js @react-native-async-storage/async-storage
   ```
 - [x] Configure TypeScript and `.env` for Firebase keys.
 - [x] Set up Firebase project: enable Auth, Firestore, Storage, Realtime DB.
 - [x] Connect Expo app to Firebase config.
+- [x] Set up Supabase Vector for RAG context storage.
 
 ---
 
@@ -225,3 +226,14 @@
 - [x] Add read receipts with profile pictures
 - [x] Add 1-on-1 chat system
 - [x] Add local push notifications (with known bug)
+- [x] Add AI translation system with cultural context detection
+- [x] Add voice message translation with OpenAI Whisper
+- [x] Add cultural hints for slang, idioms, and cultural references
+- [x] Add translation settings and language preferences
+- [x] Add comprehensive localization for English, Spanish, and Chinese Simplified
+- [x] Add smart message suggestions with speaker-aware context
+- [x] Add RAG integration with Supabase Vector for conversation context
+- [x] Add image upload system with iMessage-style interface
+- [x] Add message reactions with Facebook Messenger-style display
+- [x] Add cultural hints language localization
+- [x] Add enhanced JSON parsing for cultural hints with fallback handling

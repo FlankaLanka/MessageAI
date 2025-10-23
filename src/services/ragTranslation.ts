@@ -80,7 +80,8 @@ class RAGTranslationService {
         culturalHints = await this.extractCulturalHints(
           userMessage,
           translationResult.translation,
-          userPreferences.target_language
+          userPreferences.target_language,
+          userPreferences
         );
       }
 
@@ -230,6 +231,13 @@ Along with the translation, output a structured JSON object for intelligent proc
 - If the translation or context is unclear, make the best possible guess and continue.
 - Never output undefined fields; if missing data, use "unknown".
 
+## LANGUAGE REQUIREMENTS
+- **CRITICAL**: All analysis fields (intent, tone, topic, entities) must be in the user's language
+- If user language is Chinese, write analysis in Chinese characters
+- If user language is Spanish, write analysis in Spanish
+- If user language is English, write analysis in English
+- The intelligent_processing fields should be localized to match the user's interface language
+
 ## RULES
 - **CONTEXT IS PARAMOUNT**: Use RAG context to disambiguate idioms or phrases.
 - **EXAMPLES**:
@@ -256,7 +264,12 @@ ${relevantContext.map((ctx, i) => `${i + 1}. "${ctx}"`).join('\n')}
 - **CONTEXT OVERRIDES**: If context suggests a literal meaning, translate literally
 - **CONTEXT OVERRIDES**: If context suggests a figurative meaning, translate figuratively
 - Target language: ${userPreferences.target_language}
-- Tone: ${userPreferences.tone || 'casual'}`
+- Tone: ${userPreferences.tone || 'casual'}
+
+### LANGUAGE REQUIREMENTS FOR ANALYSIS
+- **CRITICAL**: All intelligent_processing fields (intent, tone, topic, entities) must be in the user's interface language
+- User's interface language: ${this.getUserInterfaceLanguage(userPreferences)}
+- Write all analysis in the user's language, not in English`
           }
         ],
         temperature: 0.3,
@@ -387,7 +400,8 @@ ${relevantContext.map((ctx, i) => `${i + 1}. "${ctx}"`).join('\n')}
   private async extractCulturalHints(
     originalText: string,
     translatedText: string,
-    targetLanguage: string
+    targetLanguage: string,
+    userPreferences: UserPreferences
   ): Promise<CulturalHint[]> {
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -403,12 +417,19 @@ ${relevantContext.map((ctx, i) => `${i + 1}. "${ctx}"`).join('\n')}
               role: 'system',
               content: `You are a cultural context expert. Analyze the following texts and identify slang, idioms, cultural references, and expressions that might need explanation.
 
+CRITICAL LANGUAGE REQUIREMENT: 
+- All explanations must be written in the user's interface language
+- If user language is Chinese, write explanations in Chinese characters
+- If user language is Spanish, write explanations in Spanish
+- If user language is English, write explanations in English
+- The explanation field should be localized to match the user's language
+
 Return your analysis as a JSON array of objects with this exact structure:
 [
   {
     "term": "exact phrase from text",
     "type": "slang|idiom|cultural|reference",
-    "explanation": "detailed cultural context and meaning",
+    "explanation": "detailed cultural context and meaning in user's language",
     "literalMeaning": "literal translation if applicable"
   }
 ]
@@ -430,7 +451,9 @@ Only include terms that are actually present in the text. Be precise and helpful
 Original: "${originalText}"
 Translated: "${translatedText}"
 
-Target language: ${targetLanguage}`
+Target language: ${targetLanguage}
+
+IMPORTANT: Write all explanations in the user's interface language: ${this.getUserInterfaceLanguage(userPreferences)}`
             }
           ],
           temperature: 0.3,
@@ -446,11 +469,65 @@ Target language: ${targetLanguage}`
       const content = result.choices[0].message.content.trim();
       
       try {
-        const hints = JSON.parse(content);
+        // Check if the response indicates no slang/cultural content
+        if (content.toLowerCase().includes('no slang') || 
+            content.toLowerCase().includes('no cultural') ||
+            content.toLowerCase().includes('no idioms') ||
+            content.toLowerCase().includes('no terms to analyze') ||
+            content.toLowerCase().includes('does not contain any')) {
+          console.log('AI detected no slang/cultural content, returning empty hints');
+          return [];
+        }
+        
+        // Clean the content to extract JSON
+        let jsonContent = content;
+        
+        // Remove any markdown formatting
+        jsonContent = jsonContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        
+        // Remove any leading/trailing whitespace and newlines
+        jsonContent = jsonContent.trim();
+        
+        // Find JSON array in the response - be more flexible
+        const jsonMatch = jsonContent.match(/\[[\s\S]*?\]/);
+        if (jsonMatch) {
+          jsonContent = jsonMatch[0];
+        }
+        
+        // Additional cleaning for common issues
+        jsonContent = jsonContent
+          .replace(/,\s*]/g, ']') // Remove trailing commas
+          .replace(/,\s*}/g, '}') // Remove trailing commas in objects
+          .replace(/\n/g, ' ') // Replace newlines with spaces
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
+        
+        console.log('RAG Translation - Cleaned JSON content:', jsonContent);
+        
+        // Try to parse the cleaned JSON
+        const hints = JSON.parse(jsonContent);
         return Array.isArray(hints) ? hints : [];
       } catch (error) {
-        console.error('Failed to parse cultural hints:', error);
-        return [];
+        console.log('Failed to parse RAG cultural hints response:', error instanceof Error ? error.message : String(error));
+        console.log('Raw content:', content);
+        
+        // If the response indicates no cultural content, return empty array gracefully
+        if (content.toLowerCase().includes('no slang') || 
+            content.toLowerCase().includes('no cultural') ||
+            content.toLowerCase().includes('no idioms') ||
+            content.toLowerCase().includes('no terms to analyze') ||
+            content.toLowerCase().includes('does not contain any')) {
+          return [];
+        }
+        
+        // Fallback: try to extract hints manually
+        try {
+          const fallbackHints = this.extractHintsFromText(content);
+          return fallbackHints;
+        } catch (fallbackError) {
+          console.log('Fallback hint extraction failed, returning empty hints');
+          return [];
+        }
       }
     } catch (error) {
       console.error('Cultural hints extraction error:', error);
@@ -552,8 +629,7 @@ Target language: ${targetLanguage}`
       return { 
         messages,
         metadata: { 
-          chatId, 
-          source: 'supabase_vector'
+          chatId
         }
       };
     } catch (error) {
@@ -590,6 +666,62 @@ Target language: ${targetLanguage}`
       { code: 'VI', name: 'Vietnamese' },
       { code: 'TR', name: 'Turkish' }
     ];
+  }
+
+  /**
+   * Extract hints from text when JSON parsing fails
+   */
+  private extractHintsFromText(content: string): CulturalHint[] {
+    try {
+      // Try to find any JSON-like structures in the text
+      const jsonMatches = content.match(/\[[\s\S]*?\]/g);
+      if (jsonMatches) {
+        for (const match of jsonMatches) {
+          try {
+            const parsed = JSON.parse(match);
+            if (Array.isArray(parsed)) {
+              return parsed;
+            }
+          } catch (e) {
+            // Continue to next match
+          }
+        }
+      }
+      
+      // If no JSON found, return empty array
+      return [];
+    } catch (error) {
+      console.log('Error in extractHintsFromText:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get user interface language for analysis localization
+   */
+  private getUserInterfaceLanguage(userPreferences: UserPreferences): string {
+    // Get the user's interface language from the store
+    try {
+      const { useStore } = require('../store/useStore');
+      const { defaultTranslationLanguage } = useStore.getState();
+      
+      console.log('RAGTranslation: Getting user interface language:', defaultTranslationLanguage);
+      
+      // Map language codes to full names
+      const languageMap: Record<string, string> = {
+        'EN': 'English',
+        'ES': 'Spanish', 
+        'ZH': 'Chinese'
+      };
+      
+      const userLanguage = languageMap[defaultTranslationLanguage] || 'English';
+      console.log('RAGTranslation: Mapped to user language:', userLanguage);
+      
+      return userLanguage;
+    } catch (error) {
+      console.warn('Could not get user interface language, defaulting to English:', error);
+      return 'English';
+    }
   }
 }
 

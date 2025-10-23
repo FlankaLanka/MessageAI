@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CulturalHint } from '../types';
+import { useLocalization } from '../hooks/useLocalization';
 
 interface TranslatedMessageDisplayProps {
   translation: string;
@@ -27,6 +28,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
   culturalHints = [],
   intelligentProcessing
 }) => {
+  const { t } = useLocalization();
   const [showDetails, setShowDetails] = useState(false);
   const hasDetails = culturalHints.length > 0 || intelligentProcessing;
 
@@ -95,7 +97,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                 styles.detailsTitle,
                 isOwn ? styles.ownDetailsTitle : styles.otherDetailsTitle
               ]}>
-                🧠 AI Analysis
+                🧠 {t('aiAnalysis')}
               </Text>
               <View style={styles.processingGrid}>
                 <View style={styles.processingItem}>
@@ -103,7 +105,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                     styles.processingLabel,
                     isOwn ? styles.ownProcessingLabel : styles.otherProcessingLabel
                   ]}>
-                    Intent:
+                    {t('intent')}:
                   </Text>
                   <Text style={[
                     styles.processingValue,
@@ -117,7 +119,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                     styles.processingLabel,
                     isOwn ? styles.ownProcessingLabel : styles.otherProcessingLabel
                   ]}>
-                    Tone:
+                    {t('tone')}:
                   </Text>
                   <Text style={[
                     styles.processingValue,
@@ -131,7 +133,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                     styles.processingLabel,
                     isOwn ? styles.ownProcessingLabel : styles.otherProcessingLabel
                   ]}>
-                    Topic:
+                    {t('topic')}:
                   </Text>
                   <Text style={[
                     styles.processingValue,
@@ -146,7 +148,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                       styles.processingLabel,
                       isOwn ? styles.ownProcessingLabel : styles.otherProcessingLabel
                     ]}>
-                      Entities:
+                      {t('entities')}:
                     </Text>
                     <Text style={[
                       styles.processingValue,
@@ -166,7 +168,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                 styles.detailsTitle,
                 isOwn ? styles.ownDetailsTitle : styles.otherDetailsTitle
               ]}>
-                🌍 Cultural Hints ({culturalHints.length})
+                🌍 {t('culturalHints')} ({culturalHints.length})
               </Text>
               <ScrollView style={styles.hintsScroll} nestedScrollEnabled>
                 {culturalHints.map((hint, index) => (
@@ -196,7 +198,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                         styles.hintLiteral,
                         isOwn ? styles.ownHintLiteral : styles.otherHintLiteral
                       ]}>
-                        Literal: {hint.literalMeaning}
+                        {t('literal')}: {hint.literalMeaning}
                       </Text>
                     )}
                   </View>

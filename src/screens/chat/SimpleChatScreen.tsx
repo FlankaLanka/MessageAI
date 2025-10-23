@@ -59,7 +59,8 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     setMessages, 
     addMessage, 
     updateMessage, 
-    updateChatLastMessage
+    updateChatLastMessage,
+    defaultTranslationLanguage
   } = useStore();
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -843,6 +844,9 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           onSuggestionSelect={handleSuggestionSelect}
           onClose={() => setShowSmartSuggestions(false)}
           visible={showSmartSuggestions}
+          otherUserLanguage={otherUser?.defaultLanguage}
+          isDirectChat={chat?.type === 'direct'}
+          userLanguage={defaultTranslationLanguage}
         />
 
         <View style={styles.inputContainer}>

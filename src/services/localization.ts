@@ -130,6 +130,16 @@ export interface LocalizationStrings {
   showCulturalContext: string;
   removeCachedTranslations: string;
   selectLanguage: string;
+  // Smart Suggestions
+  smartSuggestions: string;
+  generatingSuggestions: string;
+  // Translation Display
+  aiAnalysis: string;
+  intent: string;
+  tone: string;
+  topic: string;
+  entities: string;
+  literal: string;
 }
 
 // English (default)
@@ -262,6 +272,16 @@ const en: LocalizationStrings = {
   showCulturalContext: 'Show cultural context for slang, idioms, and cultural references',
   removeCachedTranslations: 'Remove cached translations to free up storage space',
   selectLanguage: 'Select Language',
+  // Smart Suggestions
+  smartSuggestions: 'Smart Suggestions',
+  generatingSuggestions: 'Generating suggestions...',
+  // Translation Display
+  aiAnalysis: 'AI Analysis',
+  intent: 'Intent',
+  tone: 'Tone',
+  topic: 'Topic',
+  entities: 'Entities',
+  literal: 'Literal',
 };
 
 // Spanish
@@ -394,6 +414,16 @@ const es: LocalizationStrings = {
   showCulturalContext: 'Mostrar contexto cultural para jerga, modismos y referencias culturales',
   removeCachedTranslations: 'Eliminar traducciones en caché para liberar espacio de almacenamiento',
   selectLanguage: 'Seleccionar Idioma',
+  // Smart Suggestions
+  smartSuggestions: 'Sugerencias Inteligentes',
+  generatingSuggestions: 'Generando sugerencias...',
+  // Translation Display
+  aiAnalysis: 'Análisis de IA',
+  intent: 'Intención',
+  tone: 'Tono',
+  topic: 'Tema',
+  entities: 'Entidades',
+  literal: 'Literal',
 };
 
 // Chinese (Simplified)
@@ -526,6 +556,16 @@ const zh: LocalizationStrings = {
   showCulturalContext: '显示俚语、习语和文化参考的文化背景',
   removeCachedTranslations: '删除缓存的翻译以释放存储空间',
   selectLanguage: '选择语言',
+  // Smart Suggestions
+  smartSuggestions: '智能建议',
+  generatingSuggestions: '正在生成建议...',
+  // Translation Display
+  aiAnalysis: 'AI分析',
+  intent: '意图',
+  tone: '语气',
+  topic: '主题',
+  entities: '实体',
+  literal: '字面意思',
 };
 
 // Available languages
@@ -594,7 +634,10 @@ class LocalizationService {
   setUser(user: User | null) {
     this.user = user;
     if (user?.defaultLanguage) {
+      console.log('Setting user language preference from Firebase:', user.defaultLanguage);
       this.setLanguage(user.defaultLanguage);
+    } else {
+      console.log('No user language preference found, using persisted language');
     }
   }
 

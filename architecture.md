@@ -14,14 +14,25 @@ subgraph Client["📱 React Native (Expo)"]
   VoiceSystem[Voice Messaging System]
   ReadReceipts[Read Receipts System]
   DirectChat[1-on-1 Chat System]
+  TranslationSystem[AI Translation System]
+  LocalizationSystem[Localization System]
+  SmartSuggestions[Smart Message Suggestions]
+  ImageUpload[Image Upload System]
+  MessageReactions[Message Reactions System]
 end
 
 subgraph Firebase["🔥 Firebase Backend"]
   Auth[Auth: Google, Email]
-  Firestore[Firestore: Messages, Groups, Users, Read Status]
+  Firestore[Firestore: Messages, Groups, Users, Read Status, Reactions]
   Realtime[Realtime DB: Presence, Typing]
-  Storage[Storage: Profile Images, Voice Messages]
+  Storage[Storage: Profile Images, Voice Messages, Chat Images]
   CloudFuncs[Cloud Functions: Notification triggers]
+end
+
+subgraph AI["🤖 AI Services"]
+  OpenAI[OpenAI GPT-4o: Translation, Cultural Hints, Smart Suggestions]
+  Whisper[OpenAI Whisper: Voice Transcription]
+  SupabaseVector[Supabase Vector: RAG Context Storage]
 end
 
 subgraph Device["📲 User Device"]
@@ -43,11 +54,22 @@ UI --> ProfileSystem
 UI --> VoiceSystem
 UI --> ReadReceipts
 UI --> DirectChat
+UI --> TranslationSystem
+UI --> LocalizationSystem
+UI --> SmartSuggestions
+UI --> ImageUpload
+UI --> MessageReactions
 Notif --> CloudFuncs
 CloudFuncs --> Firestore
 VoiceSystem --> Storage
 ReadReceipts --> Firestore
 DirectChat --> Firestore
+TranslationSystem --> OpenAI
+TranslationSystem --> Whisper
+SmartSuggestions --> OpenAI
+SmartSuggestions --> SupabaseVector
+ImageUpload --> Storage
+MessageReactions --> Firestore
 
 ExpoGo --> UI
 UI -->|Send message| Firestore
@@ -151,6 +173,39 @@ true | false
 13. **Typing Indicators**: User types → Update typing status in Realtime DB → Show animated triple dots with user name → Auto-timeout after inactivity.
 14. **1-on-1 Chat**: User searches for contact → UserSearchModal displays results → Create direct chat → Navigate to chat screen.
 15. **Local Notifications**: Message sent → Trigger local notification → Show notification (with known bug: senders receive their own notifications).
+16. **AI Translation**: User sends message → TranslationService calls OpenAI → Generate translation + cultural hints → Display inline translation UI → Store in RAG context.
+17. **Smart Suggestions**: Keyboard opens → SmartSuggestionsService calls OpenAI with RAG context → Generate 3 suggestions → Display in suggestion bar → User taps to send.
+18. **Image Upload**: User selects image → ImagePickerButton opens gallery → Image preview in text input → Send image message → Upload to Firebase Storage → Display in chat.
+19. **Message Reactions**: User long-presses message → ReactionPicker opens → User selects emoji → Add reaction to Firestore → Display reaction overlay → Real-time updates.
+20. **Localization**: User changes language → LocalizationService updates UI → All text updates to selected language → Cultural hints generate in user's language.
+
+## AI & Localization Features
+
+### AI Translation System
+- **OpenAI GPT-4o**: Powers translation, cultural hints, and smart suggestions
+- **Cultural Context Detection**: Identifies slang, idioms, and cultural references
+- **Language Localization**: Cultural hints explanations in user's interface language
+- **RAG Integration**: Supabase Vector stores conversation context for better translations
+- **Robust JSON Parsing**: Enhanced parsing with fallback handling for AI responses
+
+### Smart Message Suggestions
+- **Speaker-Aware Context**: AI understands who is speaking and provides appropriate suggestions
+- **RAG-Powered**: Uses conversation history from Supabase Vector for context
+- **Function Calling**: Structured AI responses with confidence scoring
+- **Keyboard-Triggered**: Appears when keyboard opens, stable while typing
+
+### Image Upload & Message Reactions
+- **iMessage-Style Interface**: Inline image preview with optional text
+- **Firebase Storage**: Secure image upload with proper security rules
+- **Facebook Messenger-Style Reactions**: Long-press to react with emojis
+- **Real-time Updates**: Reactions sync across all devices instantly
+
+### Comprehensive Localization
+- **Multi-language Support**: English, Spanish, and Chinese Simplified
+- **Native Language Names**: Language selector shows native names
+- **Persistent Settings**: Language choice saved to user profile and AsyncStorage
+- **Real-time Switching**: UI updates immediately when language changes
+- **Cultural Hints Localization**: Explanations generated in user's language
 
 ## Deployment
 - Development: `npx expo start` → run via Expo Go  

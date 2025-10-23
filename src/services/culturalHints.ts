@@ -149,6 +149,33 @@ class CulturalHintsService {
   }
 
   /**
+   * Get user interface language for cultural hints localization
+   */
+  private getUserInterfaceLanguage(): string {
+    try {
+      const { useStore } = require('../store/useStore');
+      const { defaultTranslationLanguage } = useStore.getState();
+      
+      console.log('CulturalHints: Getting user interface language:', defaultTranslationLanguage);
+      
+      // Map language codes to full names
+      const languageMap: Record<string, string> = {
+        'EN': 'English',
+        'ES': 'Spanish', 
+        'ZH': 'Chinese'
+      };
+      
+      const userLanguage = languageMap[defaultTranslationLanguage] || 'English';
+      console.log('CulturalHints: Mapped to user language:', userLanguage);
+      
+      return userLanguage;
+    } catch (error) {
+      console.warn('Could not get user interface language, defaulting to English:', error);
+      return 'English';
+    }
+  }
+
+  /**
    * Get cache statistics
    */
   async getCacheStats(): Promise<{
@@ -223,12 +250,19 @@ class CulturalHintsService {
             role: 'system',
             content: `You are a cultural context expert. Analyze the following text and identify slang, idioms, cultural references, and expressions that might need explanation for someone learning the language or from a different culture.
 
+CRITICAL LANGUAGE REQUIREMENT: 
+- All explanations must be written in the user's interface language
+- If user language is Chinese, write explanations in Chinese characters
+- If user language is Spanish, write explanations in Spanish
+- If user language is English, write explanations in English
+- The explanation field should be localized to match the user's language
+
 Return your analysis as a JSON array of objects with this exact structure:
 [
   {
     "term": "exact phrase from text",
     "type": "slang|idiom|cultural|reference",
-    "explanation": "detailed cultural context and meaning",
+    "explanation": "detailed cultural context and meaning in user's language",
     "literalMeaning": "literal translation if applicable"
   }
 ]
@@ -245,7 +279,7 @@ Only include terms that are actually present in the text. Be precise and helpful
           },
           {
             role: 'user',
-            content: `Analyze this text in ${language}:\n\n"${text}"`
+            content: `Analyze this text in ${language}:\n\n"${text}"\n\nIMPORTANT: Write all explanations in the user's interface language: ${this.getUserInterfaceLanguage()}\n\nDEBUG: User interface language is ${this.getUserInterfaceLanguage()}`
           }
         ],
         temperature: 0.3,
@@ -277,11 +311,24 @@ Only include terms that are actually present in the text. Be precise and helpful
       // Remove any markdown formatting
       jsonContent = jsonContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
       
-      // Find JSON array in the response
-      const jsonMatch = jsonContent.match(/\[[\s\S]*\]/);
+      // Remove any leading/trailing whitespace and newlines
+      jsonContent = jsonContent.trim();
+      
+      // Find JSON array in the response - be more flexible
+      const jsonMatch = jsonContent.match(/\[[\s\S]*?\]/);
       if (jsonMatch) {
         jsonContent = jsonMatch[0];
       }
+      
+      // Additional cleaning for common issues
+      jsonContent = jsonContent
+        .replace(/,\s*]/g, ']') // Remove trailing commas
+        .replace(/,\s*}/g, '}') // Remove trailing commas in objects
+        .replace(/\n/g, ' ') // Replace newlines with spaces
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+      
+      console.log('Cleaned JSON content:', jsonContent);
       
       // Try to parse the cleaned JSON
       const hints = JSON.parse(jsonContent);

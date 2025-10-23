@@ -134,6 +134,7 @@ export class AuthService {
           status: 'offline',
           lastSeen: Date.now(),
           isDeleted: false,
+          defaultLanguage: 'EN', // Set default language to English for new users
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };

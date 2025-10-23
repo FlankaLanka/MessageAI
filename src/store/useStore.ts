@@ -78,13 +78,17 @@ export const useStore = create<AppState>((set) => ({
   
   // Actions
   setUser: (user) => {
+    console.log('Store: Setting user with language preference:', user?.defaultLanguage);
     set({ user });
     // Update localization service with user's language preference
     localizationService.setUser(user);
     
     // Update translation language to match user's language preference
     if (user?.defaultLanguage) {
+      console.log('Store: Setting defaultTranslationLanguage to:', user.defaultLanguage);
       set({ defaultTranslationLanguage: user.defaultLanguage });
+    } else {
+      console.log('Store: No defaultLanguage found in user profile');
     }
   },
   setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),

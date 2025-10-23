@@ -25,6 +25,12 @@ export class UserService {
       
       if (userSnap.exists()) {
         const data = userSnap.data();
+        console.log('UserService: Loaded user data from Firebase:', {
+          uid: userSnap.id,
+          defaultLanguage: data.defaultLanguage,
+          email: data.email,
+          displayName: data.displayName
+        });
         return {
           uid: userSnap.id,
           email: data.email,
@@ -37,6 +43,7 @@ export class UserService {
           lastSeen: data.lastSeen || Date.now(),
           pushToken: data.pushToken,
           isDeleted: data.isDeleted || false,
+          defaultLanguage: data.defaultLanguage || 'EN', // Add defaultLanguage field
           createdAt: data.createdAt || Date.now(),
           updatedAt: data.updatedAt || Date.now(),
         } as User;

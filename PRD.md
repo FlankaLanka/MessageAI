@@ -2,8 +2,8 @@
 
 ## 1. Overview
 MessageAI is a cross-platform messaging app inspired by WhatsApp, built using **React Native + Expo** with **Firebase** backend services.  
-The MVP focuses on creating a **robust, reliable messaging experience** with real-time sync, offline queueing, push notifications, and **AI-powered translation features**.  
-The app now includes advanced AI translation capabilities with cultural context detection.
+The MVP focuses on creating a **robust, reliable messaging experience** with real-time sync, offline queueing, push notifications, **AI-powered translation features**, **image upload and message reactions**, and **comprehensive localization support**.  
+The app now includes advanced AI translation capabilities with cultural context detection, image messaging, message reactions, and multi-language support for English, Spanish, and Chinese Simplified.
 
 ---
 
@@ -12,9 +12,14 @@ Create a production-quality messaging app that:
 - Supports real-time one-on-one and group chat.
 - Persists messages offline and automatically resends on reconnect.
 - Provides accurate message delivery states (sending → sent → delivered → read).
-- Includes presence, typing indicators, and basic media support (images).
+- Includes presence, typing indicators, and media support (images, voice messages).
 - Authenticates users via Firebase (Google, email, and phone verification).
 - Runs seamlessly on iOS and Android through Expo Go.
+- Provides AI-powered translation with cultural context detection.
+- Supports image upload with iMessage-style interface.
+- Enables message reactions with Facebook Messenger-style display.
+- Offers comprehensive localization for English, Spanish, and Chinese Simplified.
+- Includes smart message suggestions with speaker-aware context.
 
 ---
 
@@ -42,7 +47,13 @@ The MVP must meet the following:
 19. **Voice Message Translation**: Automatic transcription and translation of voice messages.
 20. **Cultural Hints**: Smart detection of slang, idioms, and cultural references.
 21. **Translation Settings**: User preferences for auto-translate and language selection.
-22. Deployment: Running on local emulator/simulator with Firebase backend (Expo Go or EAS build).
+22. **Image Upload System**: iMessage-style image attachment with inline preview and optional text.
+23. **Message Reactions**: Long-press to react with emojis, Facebook Messenger-style reaction display.
+24. **Comprehensive Localization**: Multi-language support for English, Spanish, and Chinese Simplified.
+25. **Smart Message Suggestions**: iPhone-style intelligent suggestions with speaker-aware context.
+26. **Cultural Hints Language Localization**: Cultural hints explanations in user's interface language.
+27. **Enhanced JSON Parsing**: Robust parsing for cultural hints with fallback handling.
+28. Deployment: Running on local emulator/simulator with Firebase backend (Expo Go or EAS build).
 
 ---
 

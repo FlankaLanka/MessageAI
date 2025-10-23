@@ -8,6 +8,10 @@ export interface SmartSuggestion {
   type: 'completion' | 'response' | 'question' | 'reaction';
   context?: string;
   reasoning?: string;
+  languageOptions?: {
+    userLanguage: string;
+    otherLanguage: string;
+  };
 }
 
 export interface SuggestionContext {
@@ -21,6 +25,8 @@ export interface SuggestionContext {
     tone: 'casual' | 'formal' | 'friendly' | 'professional';
     style: 'concise' | 'detailed' | 'conversational';
   };
+  otherUserLanguage?: string;
+  isDirectChat?: boolean;
 }
 
 class SmartSuggestionsService {
@@ -173,6 +179,19 @@ Provide a concise analysis focusing on:
       context.currentUserName
     );
     
+    // Check if this is a direct chat with different languages
+    const shouldGenerateMultiLanguage = context.isDirectChat && 
+      context.otherUserLanguage && 
+      context.otherUserLanguage !== this.getLanguageCodeFromName(context.userPreferences.language);
+    
+    console.log('Smart Suggestions Debug:', {
+      isDirectChat: context.isDirectChat,
+      otherUserLanguage: context.otherUserLanguage,
+      userLanguage: context.userPreferences.language,
+      shouldGenerateMultiLanguage,
+      userLanguageCode: this.getLanguageCodeFromName(context.userPreferences.language)
+    });
+    
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -186,7 +205,15 @@ Provide a concise analysis focusing on:
             role: 'system',
             content: `You are a smart messaging assistant that provides the TOP 3 most likely responses a user might send.
 
-CRITICAL: Generate the 3 most probable responses the current speaker would naturally send next, based on conversation context.
+CRITICAL LANGUAGE REQUIREMENT: 
+- The user's language is: ${context.userPreferences.language}
+- You MUST generate ALL suggestions in ${context.userPreferences.language} language
+- Do NOT use English unless the user's language is English
+- If the user's language is Chinese, write in Chinese
+- If the user's language is Spanish, write in Spanish
+- If the user's language is English, write in English
+
+Generate the 3 most probable responses the current speaker would naturally send next, based on conversation context.
 
 Your analysis should consider:
 - WHO is currently speaking and their role/relationship in the conversation
@@ -201,7 +228,8 @@ Provide the TOP 3 suggestions that are:
 - The most likely responses the speaker would send
 - Contextually relevant to the current conversation flow
 - Natural continuations of what's being discussed
-- Appropriate for the current speaker's role and perspective in the conversation`
+- Appropriate for the current speaker's role and perspective in the conversation
+- Written EXCLUSIVELY in ${context.userPreferences.language} language`
           },
           {
             role: 'user',
@@ -213,6 +241,7 @@ Chat ID: ${context.chatId}
 Language: ${context.userPreferences.language}
 Tone: ${context.userPreferences.tone}
 Style: ${context.userPreferences.style}
+${shouldGenerateMultiLanguage ? `Other user's language: ${context.otherUserLanguage}` : ''}
 
 CONVERSATION ANALYSIS:
 ${conversationAnalysis}
@@ -224,7 +253,11 @@ IMPORTANT:
 - Base your suggestions on what has actually been discussed
 - Don't suggest questions about topics that have already been covered
 - Consider ${context.currentUserName}'s perspective and role in the conversation
-- Provide suggestions that make sense for ${context.currentUserName} to say`
+- Provide suggestions that make sense for ${context.currentUserName} to say
+- CRITICAL: Generate ALL suggestions in ${context.userPreferences.language} language, NOT in English
+- If user language is Chinese, write suggestions in Chinese characters
+- If user language is Spanish, write suggestions in Spanish
+- If user language is English, write suggestions in English`
           }
         ],
         functions: [
@@ -286,7 +319,7 @@ IMPORTANT:
     
       if (functionCall && functionCall.name === 'generate_message_suggestions') {
         const args = JSON.parse(functionCall.arguments);
-        return args.suggestions.map((suggestion: any, index: number) => ({
+        const suggestions = args.suggestions.map((suggestion: any, index: number) => ({
           id: `suggestion-${Date.now()}-${index}`,
           text: suggestion.text,
           type: suggestion.type,
@@ -294,9 +327,72 @@ IMPORTANT:
           context: suggestion.context,
           reasoning: suggestion.reasoning
         }));
+
+        // If this is a direct chat with different languages, add translation options
+        if (shouldGenerateMultiLanguage) {
+          return await this.addLanguageOptions(suggestions, context);
+        }
+
+        return suggestions;
       }
 
     throw new Error('Invalid function call response');
+  }
+
+  /**
+   * Add language options to suggestions for multi-language support
+   */
+  private async addLanguageOptions(
+    suggestions: SmartSuggestion[], 
+    context: SuggestionContext
+  ): Promise<SmartSuggestion[]> {
+    try {
+      // Import translation service
+      const { simpleTranslationService } = await import('./simpleTranslation');
+      
+      const enhancedSuggestions: SmartSuggestion[] = [];
+      
+      for (const suggestion of suggestions) {
+        // Translate to other user's language
+        let translatedText = suggestion.text;
+        try {
+          translatedText = await simpleTranslationService.translateText(
+            suggestion.text,
+            context.otherUserLanguage!
+          );
+        } catch (translationError) {
+          console.warn('Failed to translate suggestion:', translationError);
+          // If translation fails, use original text
+          translatedText = suggestion.text;
+        }
+        
+        // Add the suggestion with language options (not duplicate)
+        enhancedSuggestions.push({
+          ...suggestion,
+          languageOptions: {
+            userLanguage: suggestion.text,
+            otherLanguage: translatedText
+          }
+        });
+      }
+      
+      return enhancedSuggestions;
+    } catch (error) {
+      console.error('Error adding language options:', error);
+      return suggestions; // Return original suggestions if translation fails
+    }
+  }
+
+  /**
+   * Get language code from language name
+   */
+  private getLanguageCodeFromName(languageName: string): string {
+    const languageMap: Record<string, string> = {
+      'English': 'EN',
+      'Spanish': 'ES',
+      'Chinese': 'ZH'
+    };
+    return languageMap[languageName] || 'EN';
   }
 
   /**

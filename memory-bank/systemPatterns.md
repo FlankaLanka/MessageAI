@@ -23,8 +23,11 @@ MessageAI follows a client-server architecture with Firebase as the backend and 
 - **Pattern Matching System**: Built-in language-specific databases for common cultural terms
 - **Translation Service**: Real-time, on-demand translation with enhanced cultural context detection
 - **Localization Service**: Multi-language support for 12 languages with native names
+- **Cultural Hints Language Localization**: Cultural hints explanations generated in user's interface language
+- **Dual Service Architecture**: Both culturalHints service and RAG translation service support language localization
+- **Robust JSON Parsing**: Enhanced JSON cleaning and fallback parsing for cultural hints
 - **Pattern**: User-controlled translation preferences with inline UI and unified language settings
-- **Benefits**: Advanced cultural context detection, confidence scoring, quality validation, offline translation support, real-time language switching
+- **Benefits**: Advanced cultural context detection, confidence scoring, quality validation, offline translation support, real-time language switching, localized cultural explanations
 
 ### 4. Smart Message Suggestions System
 - **LLM Integration**: GPT-4o with function calling for intelligent suggestion generation

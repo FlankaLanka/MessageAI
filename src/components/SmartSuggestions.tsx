@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SmartSuggestion, smartSuggestionsService } from '../services/smartSuggestions';
 import { Message } from '../types';
+import { useLocalization } from '../hooks/useLocalization';
 
 interface SmartSuggestionsProps {
   currentMessage: string;
@@ -22,6 +23,9 @@ interface SmartSuggestionsProps {
   onSuggestionSelect: (suggestion: string) => void;
   onClose: () => void;
   visible: boolean;
+  otherUserLanguage?: string;
+  isDirectChat?: boolean;
+  userLanguage?: string;
 }
 
 export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
@@ -32,8 +36,12 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
   currentUserName,
   onSuggestionSelect,
   onClose,
-  visible
+  visible,
+  otherUserLanguage,
+  isDirectChat,
+  userLanguage
 }) => {
+  const { t } = useLocalization();
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
@@ -71,13 +79,23 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
         currentUserId,
         currentUserName,
         userPreferences: {
-          language: 'English',
+          language: getLanguageName(userLanguage),
           tone: 'casual' as const,
           style: 'conversational' as const
-        }
+        },
+        otherUserLanguage,
+        isDirectChat
       };
 
+      console.log('SmartSuggestions Component Debug:', {
+        userLanguage,
+        otherUserLanguage,
+        isDirectChat,
+        context
+      });
+      
       const newSuggestions = await smartSuggestionsService.generateSuggestions(context);
+      console.log('Generated suggestions:', newSuggestions);
       setSuggestions(newSuggestions.slice(0, 3));
     } catch (error) {
       console.error('Failed to load suggestions:', error);
@@ -90,6 +108,15 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
   const handleSuggestionPress = (suggestion: SmartSuggestion) => {
     onSuggestionSelect(suggestion.text);
     onClose();
+  };
+
+  const getLanguageName = (languageCode?: string): string => {
+    const languageMap: Record<string, string> = {
+      'EN': 'English',
+      'ES': 'Spanish', 
+      'ZH': 'Chinese'
+    };
+    return languageCode ? languageMap[languageCode] || 'English' : 'English';
   };
 
   const getSuggestionIcon = (type: string) => {
@@ -146,7 +173,7 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Ionicons name="bulb" size={16} color="#007AFF" />
-            <Text style={styles.headerTitle}>Smart Suggestions</Text>
+            <Text style={styles.headerTitle}>{t('smartSuggestions')}</Text>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={16} color="#8E8E93" />
@@ -156,7 +183,7 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color="#007AFF" />
-          <Text style={styles.loadingText}>Generating suggestions...</Text>
+          <Text style={styles.loadingText}>{t('generatingSuggestions')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -164,44 +191,70 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
           contentContainerStyle={styles.suggestionsContainer}
         >
           {suggestions.map((suggestion) => (
-            <TouchableOpacity
-              key={suggestion.id}
-              style={[
-                styles.suggestionChip,
-                { borderColor: getSuggestionColor(suggestion.type) }
-              ]}
-              onPress={() => handleSuggestionPress(suggestion)}
-            >
-              <View style={styles.suggestionContent}>
-                <Ionicons
-                  name={getSuggestionIcon(suggestion.type)}
-                  size={16}
-                  color={getSuggestionColor(suggestion.type)}
-                />
-                <Text
-                  style={[
-                    styles.suggestionText,
-                    { color: getSuggestionColor(suggestion.type) }
-                  ]}
-                  numberOfLines={3}
-                >
-                  {suggestion.text}
-                </Text>
-                {suggestion.confidence > 0.8 && (
-                  <View style={styles.confidenceBadge}>
-                    <Text style={styles.confidenceText}>
-                      {Math.round(suggestion.confidence * 100)}%
-                    </Text>
-                  </View>
+            <View key={suggestion.id} style={styles.suggestionWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.suggestionChip,
+                  { borderColor: getSuggestionColor(suggestion.type) }
+                ]}
+                onPress={() => handleSuggestionPress(suggestion)}
+              >
+                <View style={styles.suggestionContent}>
+                  <Ionicons
+                    name={getSuggestionIcon(suggestion.type)}
+                    size={16}
+                    color={getSuggestionColor(suggestion.type)}
+                  />
+                  <Text
+                    style={[
+                      styles.suggestionText,
+                      { color: getSuggestionColor(suggestion.type) }
+                    ]}
+                    numberOfLines={3}
+                  >
+                    {suggestion.text}
+                  </Text>
+                  {suggestion.confidence > 0.8 && (
+                    <View style={styles.confidenceBadge}>
+                      <Text style={styles.confidenceText}>
+                        {Math.round(suggestion.confidence * 100)}%
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {suggestion.context && (
+                  <Text style={styles.contextText}>{suggestion.context}</Text>
                 )}
-              </View>
-              {suggestion.context && (
-                <Text style={styles.contextText}>{suggestion.context}</Text>
+                {suggestion.reasoning && (
+                  <Text style={styles.reasoningText}>{suggestion.reasoning}</Text>
+                )}
+              </TouchableOpacity>
+              
+              {/* Language Options */}
+              {suggestion.languageOptions && (
+                <View style={styles.languageOptions}>
+                  <TouchableOpacity
+                    style={styles.languageOption}
+                    onPress={() => handleSuggestionPress({ ...suggestion, text: suggestion.languageOptions!.userLanguage })}
+                  >
+                    <Text style={styles.languageOptionText}>
+                      {suggestion.languageOptions.userLanguage}
+                    </Text>
+                    <Text style={styles.languageLabel}>Your language</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.languageOption}
+                    onPress={() => handleSuggestionPress({ ...suggestion, text: suggestion.languageOptions!.otherLanguage })}
+                  >
+                    <Text style={styles.languageOptionText}>
+                      {suggestion.languageOptions.otherLanguage}
+                    </Text>
+                    <Text style={styles.languageLabel}>Their language</Text>
+                  </TouchableOpacity>
+                </View>
               )}
-              {suggestion.reasoning && (
-                <Text style={styles.reasoningText}>{suggestion.reasoning}</Text>
-              )}
-            </TouchableOpacity>
+            </View>
           ))}
         </ScrollView>
       )}
@@ -305,6 +358,33 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#007AFF',
     marginTop: 2,
+    fontWeight: '500',
+  },
+  suggestionWrapper: {
+    marginBottom: 8,
+  },
+  languageOptions: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 8,
+  },
+  languageOption: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+  },
+  languageOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#495057',
+    marginBottom: 4,
+  },
+  languageLabel: {
+    fontSize: 11,
+    color: '#6C757D',
     fontWeight: '500',
   },
 });
