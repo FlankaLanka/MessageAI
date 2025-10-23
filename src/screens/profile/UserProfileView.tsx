@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from '../../types';
 import { UserService } from '../../services/users';
+import { useLocalization } from '../../hooks/useLocalization';
 import OnlineIndicator from '../../components/OnlineIndicator';
 
 interface UserProfileViewProps {
@@ -25,6 +26,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isSmallScreen = screenHeight < 700;
 
 export default function UserProfileView({ userId, onNavigateBack, onStartChat }: UserProfileViewProps) {
+  const { t } = useLocalization();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
@@ -67,7 +69,7 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <Text style={styles.loadingText}>{t('loadingProfile')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -83,9 +85,9 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>User not found</Text>
+          <Text style={styles.errorText}>{t('userNotFound')}</Text>
           <TouchableOpacity onPress={onNavigateBack} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Go Back</Text>
+            <Text style={styles.retryButtonText}>{t('goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -105,8 +107,8 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
           <View style={styles.deletedAvatar}>
             <Text style={styles.deletedAvatarText}>?</Text>
           </View>
-          <Text style={styles.deletedName}>Deleted User</Text>
-          <Text style={styles.deletedText}>This user has deleted their account</Text>
+          <Text style={styles.deletedName}>{t('deletedUser')}</Text>
+          <Text style={styles.deletedText}>{t('userDeletedAccount')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -116,9 +118,9 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onNavigateBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.backButtonText}>← {t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>{t('profile')}</Text>
       </View>
 
       <ScrollView
@@ -160,7 +162,7 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
           <View style={styles.statusContainer}>
             <View style={[styles.statusDot, isOnline ? styles.statusOnline : styles.statusOffline]} />
             <Text style={[styles.statusText, isSmallScreen && styles.statusTextSmall]}>
-              {isOnline ? 'Online' : 'Offline'}
+              {isOnline ? t('online') : t('offline')}
             </Text>
           </View>
         </View>
@@ -171,7 +173,7 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
             style={styles.messageButton}
             onPress={handleStartChat}
           >
-            <Text style={styles.messageButtonText}>Send Message</Text>
+            <Text style={styles.messageButtonText}>{t('sendMessage')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

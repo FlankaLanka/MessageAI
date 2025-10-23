@@ -261,6 +261,16 @@ Only include terms that are actually present in the text. Be precise and helpful
     const content = result.choices[0].message.content.trim();
     
     try {
+      // Check if the response indicates no slang/cultural content
+      if (content.toLowerCase().includes('no slang') || 
+          content.toLowerCase().includes('no cultural') ||
+          content.toLowerCase().includes('no idioms') ||
+          content.toLowerCase().includes('no terms to analyze') ||
+          content.toLowerCase().includes('does not contain any')) {
+        console.log('AI detected no slang/cultural content, returning empty hints');
+        return [];
+      }
+      
       // Clean the content to extract JSON
       let jsonContent = content;
       
@@ -277,15 +287,24 @@ Only include terms that are actually present in the text. Be precise and helpful
       const hints = JSON.parse(jsonContent);
       return Array.isArray(hints) ? hints : [];
     } catch (error) {
-      console.error('Failed to parse AI hints response:', error);
-      console.error('Raw content:', content);
+      console.log('Failed to parse AI hints response (likely no slang detected):', error instanceof Error ? error.message : String(error));
+      console.log('Raw content:', content);
+      
+      // If the response indicates no cultural content, return empty array gracefully
+      if (content.toLowerCase().includes('no slang') || 
+          content.toLowerCase().includes('no cultural') ||
+          content.toLowerCase().includes('no idioms') ||
+          content.toLowerCase().includes('no terms to analyze') ||
+          content.toLowerCase().includes('does not contain any')) {
+        return [];
+      }
       
       // Fallback: try to extract hints manually
       try {
         const fallbackHints = this.extractHintsFromText(content);
         return fallbackHints;
       } catch (fallbackError) {
-        console.error('Fallback hint extraction failed:', fallbackError);
+        console.log('Fallback hint extraction failed, returning empty hints');
         return [];
       }
     }
@@ -312,7 +331,7 @@ Only include terms that are actually present in the text. Be precise and helpful
             term,
             explanation,
             type: 'idiom', // Default type
-            literalMeaning: null
+            literalMeaning: undefined
           });
         }
       }

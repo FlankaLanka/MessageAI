@@ -1,7 +1,7 @@
 # MessageAI - System Patterns
 
 ## Architecture Overview
-MessageAI follows a client-server architecture with Firebase as the backend and React Native as the client. The system emphasizes offline resilience, real-time synchronization, cross-platform compatibility, **AI-powered translation with cultural context detection**, and **comprehensive localization support**.
+MessageAI follows a client-server architecture with Firebase as the backend and React Native as the client. The system emphasizes offline resilience, real-time synchronization, cross-platform compatibility, **AI-powered translation with cultural context detection**, **comprehensive localization support**, **image upload and message reactions**, and **complete localization coverage**.
 
 ## Key Technical Decisions
 
@@ -36,17 +36,40 @@ MessageAI follows a client-server architecture with Firebase as the backend and 
 - **Pattern**: Context-aware suggestions based on conversation flow and speaker perspective
 - **Benefits**: Intelligent message completions, conversation-aware suggestions, speaker-appropriate responses
 
-### 5. State Management with Zustand
+### 5. Image Upload & Message Reactions System
+- **Image Upload**: iMessage-style image attachment with inline preview and optional text
+- **Firebase Storage**: Secure image upload with proper security rules and offline support
+- **Message Reactions**: Long-press to react with emojis, Facebook Messenger-style reaction display
+- **Reaction Management**: Add, remove, and change reactions with real-time updates
+- **Offline Support**: Image messages and reactions queue locally and sync when online
+- **Enhanced Message Types**: Extended Message interface with imageUrl and reactions fields
+- **SQLite Schema**: Added reactions column and pending_reactions table for offline support
+- **UI Components**: ReactionPicker and ReactionDisplay with haptic feedback
+- **Translation Integration**: Text portions of image messages are translated and stored in RAG
+- **Pattern**: iMessage-style image attachment with Facebook Messenger-style reactions
+- **Benefits**: Rich media messaging, emotional expression, offline resilience, real-time reactions
+
+### 6. Comprehensive Localization System
+- **Language Support**: Streamlined to English, Spanish, and Chinese Simplified only
+- **Persistence**: AsyncStorage for language choice across app restarts
+- **Coverage**: All screens, components, and modals fully localized
+- **Native Names**: Language selection shows native language names
+- **UI Adaptation**: Button sizing and text fitting for different languages
+- **Modal Improvements**: Enhanced spacing and text fitting in language selector
+- **Pattern**: Centralized localization with real-time language switching
+- **Benefits**: Complete internationalization, persistent language choice, native language display
+
+### 7. State Management with Zustand
 - **Rationale**: Lightweight, TypeScript-friendly state management
 - **Pattern**: Centralized store with actions and selectors
 - **Benefits**: Simple API, good performance, easy testing
 
-### 6. Platform-Specific Storage
+### 8. Platform-Specific Storage
 - **Storage**: SQLite for offline message caching and queue
 - **Pattern**: Local-first with sync to Firebase, Expo Go compatible
 - **Benefits**: Works offline, fast local queries, data persistence, optimized for Expo Go
 
-### 7. Expo Go Development Environment
+### 9. Expo Go Development Environment
 - **Focus**: Optimized for Expo Go development and testing
 - **Storage**: SQLite for offline message caching and queue
 - **Gestures**: Native swipe gestures for chat management

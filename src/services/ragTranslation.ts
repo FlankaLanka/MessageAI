@@ -300,8 +300,25 @@ ${relevantContext.map((ctx, i) => `${i + 1}. "${ctx}"`).join('\n')}
         }
       };
     } catch (error) {
-      console.error('Failed to parse translation result:', error);
-      console.error('Raw content:', content);
+      console.log('Failed to parse translation result (likely no translation needed):', error instanceof Error ? error.message : String(error));
+      console.log('Raw content:', content);
+      
+      // If the response indicates no translation needed, return original message
+      if (content.toLowerCase().includes('no translation needed') ||
+          content.toLowerCase().includes('already in target language') ||
+          content.toLowerCase().includes('no changes required')) {
+        return {
+          translation: userMessage,
+          intelligent_processing: {
+            intent: 'unknown',
+            tone: 'neutral',
+            topic: 'general',
+            entities: [],
+            language_detected: 'unknown',
+            confidence: 0.5
+          }
+        };
+      }
       
       // Fallback: try to extract translation manually
       try {
@@ -318,8 +335,18 @@ ${relevantContext.map((ctx, i) => `${i + 1}. "${ctx}"`).join('\n')}
           }
         };
       } catch (fallbackError) {
-        console.error('Fallback translation extraction failed:', fallbackError);
-        throw new Error('Invalid translation response format');
+        console.log('Fallback translation extraction failed, returning original message');
+        return {
+          translation: userMessage,
+          intelligent_processing: {
+            intent: 'unknown',
+            tone: 'neutral',
+            topic: 'general',
+            entities: [],
+            language_detected: 'unknown',
+            confidence: 0.5
+          }
+        };
       }
     }
   }

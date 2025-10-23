@@ -177,6 +177,34 @@ export class MediaService {
     }
   }
 
+  // Upload chat image to Firebase Storage
+  static async uploadChatImage(
+    chatId: string, 
+    messageId: string, 
+    imageUri: string
+  ): Promise<string> {
+    try {
+      // Convert image file to blob
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      
+      // Create storage reference
+      const storageRef = ref(storage, `chatImages/${chatId}/${messageId}.jpg`);
+      
+      // Upload the blob
+      const snapshot = await uploadBytes(storageRef, blob);
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      console.log('Chat image uploaded successfully:', downloadURL);
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading chat image:', error);
+      throw error;
+    }
+  }
+
   // Delete voice message from Firebase Storage
   static async deleteVoiceMessage(audioUrl: string): Promise<void> {
     try {

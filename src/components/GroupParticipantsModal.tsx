@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from '../types';
+import { useLocalization } from '../hooks/useLocalization';
 import OnlineIndicator from './OnlineIndicator';
 
 interface GroupParticipantsModalProps {
@@ -33,6 +34,7 @@ export default function GroupParticipantsModal({
   onClose,
   onUserPress,
 }: GroupParticipantsModalProps) {
+  const { t } = useLocalization();
   const renderParticipant = ({ item }: { item: User }) => {
     const isAdmin = admins.includes(item.uid);
     const isCurrentUser = item.uid === currentUserId;
@@ -70,7 +72,7 @@ export default function GroupParticipantsModal({
               )}
             </View>
             <Text style={[styles.participantStatus, isSmallScreen && styles.participantStatusSmall]}>
-              {isOnline ? 'Online' : 'Offline'}
+              {isOnline ? t('online') : t('offline')}
             </Text>
           </View>
         </View>

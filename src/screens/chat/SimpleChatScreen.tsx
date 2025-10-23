@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../store/useStore';
 import { Message, User, Chat } from '../../types';
+import { useLocalization } from '../../hooks/useLocalization';
 import { MessageService } from '../../services/messages';
 import { UserService } from '../../services/users';
 import { GroupService } from '../../services/groups';
@@ -31,12 +32,18 @@ import ReadReceipt from '../../components/ReadReceipt';
 import VoiceRecorder from '../../components/VoiceRecorder';
 import VoiceMessageBubble from '../../components/VoiceMessageBubble';
 import VoiceMessagePreview from '../../components/VoiceMessagePreview';
+import ImagePickerButton from '../../components/ImagePickerButton';
+import ReactionPicker from '../../components/ReactionPicker';
+import ReactionDisplay from '../../components/ReactionDisplay';
 import { TranslationButton } from '../../components/TranslationButton';
 import { TranslatedMessageDisplay } from '../../components/TranslatedMessageDisplay';
 import SmartSuggestions from '../../components/SmartSuggestions';
 import { ReadReceiptService, UserReadStatus } from '../../services/readReceipts';
 import { audioService } from '../../services/audio';
 import { supabaseVectorService } from '../../services/supabaseVector';
+import { ReactionService } from '../../services/reactions';
+import { MessageReaction } from '../../types';
+import * as Haptics from 'expo-haptics';
 
 interface SimpleChatScreenProps {
   chatId: string;
@@ -45,6 +52,7 @@ interface SimpleChatScreenProps {
 }
 
 export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToUserProfile }: SimpleChatScreenProps) {
+  const { t } = useLocalization();
   const { 
     user, 
     messages, 
@@ -106,11 +114,26 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   
+  // Image message state
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  // Reaction state
+  const [messageReactions, setMessageReactions] = useState<Record<string, MessageReaction[]>>({});
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  
   const networkState = useNetworkState();
 
   // Get screen dimensions for responsive design
   const { height: screenHeight } = Dimensions.get('window');
   const isSmallScreen = screenHeight < 700;
+
+  // Load chat info when component mounts
+  useEffect(() => {
+    if (!user) return;
+    
+    loadChatInfo();
+  }, [chatId, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -138,16 +161,69 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     // Start read receipt sync service
     const stopSync = ReadReceiptService.startAutoSync();
 
-    // Load chat information
-    loadChatInfo();
+    // Set up reaction subscriptions for visible messages
+    const reactionUnsubscribers: (() => void)[] = [];
+    
+    const setupReactionSubscriptions = (messages: Message[]) => {
+      // Clean up existing subscriptions
+      reactionUnsubscribers.forEach(unsub => unsub());
+      reactionUnsubscribers.length = 0;
+      
+      // Subscribe to reactions for visible messages
+      messages.slice(0, 20).forEach(message => { // Limit to first 20 messages for performance
+        const unsubscribe = ReactionService.onReactionsUpdate(
+          chatId,
+          message.id,
+          (reactions) => {
+            setMessageReactions(prev => ({
+              ...prev,
+              [message.id]: reactions
+            }));
+          }
+        );
+        reactionUnsubscribers.push(unsubscribe);
+      });
+    };
+
+    // Set up initial reaction subscriptions
+    setupReactionSubscriptions(messages);
 
     return () => {
       unsubscribe();
       unsubscribeTyping();
       unsubscribeReadStatus();
       stopSync();
+      // Clean up reaction subscriptions
+      reactionUnsubscribers.forEach(unsub => unsub());
     };
   }, [chatId, user, setMessages]);
+
+  // Set up reaction subscriptions when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      const reactionUnsubscribers: (() => void)[] = [];
+      
+      // Subscribe to reactions for visible messages (limit to prevent memory issues)
+      const visibleMessages = messages.slice(0, 20);
+      visibleMessages.forEach((message: Message) => {
+        const unsubscribe = ReactionService.onReactionsUpdate(
+          chatId,
+          message.id,
+          (reactions) => {
+            setMessageReactions(prev => ({
+              ...prev,
+              [message.id]: reactions
+            }));
+          }
+        );
+        reactionUnsubscribers.push(unsubscribe);
+      });
+
+      return () => {
+        reactionUnsubscribers.forEach(unsub => unsub());
+      };
+    }
+  }, [messages, chatId]);
 
   const markMessagesAsRead = async (messages: Message[]) => {
     if (!user || messages.length === 0) return;
@@ -193,12 +269,9 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             
             // Subscribe to other user's presence
             if (otherUserData) {
-              const unsubscribe = presenceService.subscribeToUserPresence(otherUserId, (presence) => {
+              presenceService.subscribeToUserPresence(otherUserId, (presence) => {
                 setIsOnline(presence.state === 'online');
               });
-              
-              // Store unsubscribe function for cleanup
-              return unsubscribe;
             }
           }
         } else if (currentChat.type === 'group') {
@@ -213,41 +286,77 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if ((!newMessage.trim() && !selectedImage) || !user) return;
 
     const messageText = newMessage.trim();
-    setNewMessage('');
-
+    
     // Stop typing indicator when sending message
     await presenceService.setTypingStatus(chatId, user.uid, user.displayName, false);
 
     try {
-      const sentMessage = await MessageService.sendMessage(
-        chatId, 
-        user.uid, 
-        messageText, 
-        user.displayName, 
-        user.photoURL
-      );
-      
-      // Update chat list immediately with the new message
-      updateChatLastMessage(chatId, sentMessage);
-      
-      // Store message in Supabase Vector for RAG context
-      try {
-        await supabaseVectorService.storeMessage(chatId, messageText, {
-          senderId: user.uid,
-          senderName: user.displayName,
-          timestamp: sentMessage.timestamp
-        });
-        console.log('Stored message in Supabase Vector for RAG context');
-      } catch (vectorError) {
-        console.warn('Failed to store message in Supabase Vector:', vectorError);
-        // Don't fail the message send if vector storage fails
+      if (selectedImage) {
+        // Send image message with optional text
+        const sentMessage = await MessageService.sendImageMessage(
+          chatId,
+          user.uid,
+          selectedImage,
+          messageText || undefined, // Send text if provided, otherwise undefined
+          user.displayName,
+          user.photoURL
+        );
+        
+        // Update chat list immediately with the new message
+        updateChatLastMessage(chatId, sentMessage);
+        
+        // Store image text in Supabase Vector for RAG context (same as regular text)
+        if (messageText) {
+          try {
+            await supabaseVectorService.storeMessage(chatId, messageText, {
+              senderId: user.uid,
+              senderName: user.displayName,
+              timestamp: sentMessage.timestamp
+            });
+            console.log('Stored image message text in Supabase Vector for RAG context');
+          } catch (vectorError) {
+            console.warn('Failed to store image message text in Supabase Vector:', vectorError);
+            // Don't fail the message send if vector storage fails
+          }
+        }
+        
+        // Clear both text and image
+        setNewMessage('');
+        setSelectedImage(null);
+      } else {
+        // Send regular text message
+        const sentMessage = await MessageService.sendMessage(
+          chatId, 
+          user.uid, 
+          messageText, 
+          user.displayName, 
+          user.photoURL
+        );
+        
+        // Update chat list immediately with the new message
+        updateChatLastMessage(chatId, sentMessage);
+        
+        setNewMessage('');
+        
+        // Store message in Supabase Vector for RAG context
+        try {
+          await supabaseVectorService.storeMessage(chatId, messageText, {
+            senderId: user.uid,
+            senderName: user.displayName,
+            timestamp: sentMessage.timestamp
+          });
+          console.log('Stored message in Supabase Vector for RAG context');
+        } catch (vectorError) {
+          console.warn('Failed to store message in Supabase Vector:', vectorError);
+          // Don't fail the message send if vector storage fails
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
+      Alert.alert(t('error'), t('failedToSendMessage'));
     }
   };
 
@@ -283,8 +392,64 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       setShowPreviewModal(false);
     } catch (error) {
       console.error('Error sending voice message:', error);
-      Alert.alert('Error', 'Failed to send voice message');
+      Alert.alert(t('error'), t('failedToSendVoiceMessage'));
     }
+  };
+
+  // Image message handlers
+  const handleImageSelected = (imageUri: string) => {
+    setSelectedImage(imageUri);
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+  };
+
+  // Reaction handlers
+  const handleMessageLongPress = async (messageId: string) => {
+    if (!user) return;
+    
+    // Add haptic feedback
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      // Haptics not available on this platform
+    }
+    
+    setSelectedMessageId(messageId);
+    setShowReactionPicker(true);
+  };
+
+  const handleReactionSelect = async (emoji: string) => {
+    if (!user || !selectedMessageId) return;
+    
+    try {
+      const currentReactions = messageReactions[selectedMessageId] || [];
+      const userReaction = currentReactions.find(r => r.userId === user.uid);
+      
+      if (userReaction && userReaction.emoji === emoji) {
+        // Remove reaction if same emoji
+        await ReactionService.removeReaction(chatId, selectedMessageId, user.uid);
+      } else {
+        // Add or change reaction
+        await ReactionService.addReaction(
+          chatId,
+          selectedMessageId,
+          emoji,
+          user.uid,
+          user.displayName,
+          user.photoURL
+        );
+      }
+    } catch (error) {
+      console.error('Error handling reaction:', error);
+      Alert.alert(t('error'), t('failedToAddReaction'));
+    }
+  };
+
+  const handleReactionPickerClose = () => {
+    setShowReactionPicker(false);
+    setSelectedMessageId(null);
   };
 
   const handlePlayVoiceMessage = async (messageId: string, audioUrl: string) => {
@@ -353,7 +518,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       return (
         <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
           <TouchableOpacity onPress={onNavigateBack} style={[styles.backButton, isSmallScreen && styles.backButtonSmall]}>
-            <Text style={[styles.backButtonText, isSmallScreen && styles.backButtonTextSmall]}>← Back</Text>
+            <Text style={[styles.backButtonText, isSmallScreen && styles.backButtonTextSmall]}>← {t('back')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -378,7 +543,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
                 {otherUser.displayName || `${otherUser.firstName} ${otherUser.lastName}`}
               </Text>
               <Text style={[styles.profileStatus, isSmallScreen && styles.profileStatusSmall]}>
-                {isOnline ? 'Online' : 'Offline'}
+                {isOnline ? t('online') : t('offline')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -394,7 +559,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       return (
         <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
           <TouchableOpacity onPress={onNavigateBack} style={[styles.backButton, isSmallScreen && styles.backButtonSmall]}>
-            <Text style={[styles.backButtonText, isSmallScreen && styles.backButtonTextSmall]}>← Back</Text>
+            <Text style={[styles.backButtonText, isSmallScreen && styles.backButtonTextSmall]}>← {t('back')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -424,7 +589,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, isSmallScreen && styles.profileNameSmall]}>
-                {chat.name || 'Group Chat'}
+                {chat.name || t('groupChat')}
               </Text>
               <Text style={[styles.profileStatus, isSmallScreen && styles.profileStatusSmall]}>
                 {groupParticipants.length} members
@@ -457,7 +622,8 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.senderId === user?.uid;
     const isGroupChat = chat?.type === 'group';
-    const senderName = item.senderName || 'Unknown User';
+    const senderName = item.senderName || t('unknownUser');
+    
     
     // Get read receipts for this message
     const readReceipts = ReadReceiptService.getReadReceiptsForMessage(
@@ -476,10 +642,16 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     }
     
     return (
-      <View style={[
-        styles.messageContainer,
-        isOwnMessage ? styles.ownMessage : styles.otherMessage
-      ]}>
+      <TouchableOpacity
+        style={[
+          styles.messageContainer,
+          isOwnMessage ? styles.ownMessage : styles.otherMessage
+        ]}
+        onLongPress={() => handleMessageLongPress(item.id)}
+        onPress={() => {}} // Prevent default press behavior
+        activeOpacity={0.7}
+        delayLongPress={500} // 500ms delay for long press
+      >
         {isGroupChat && !isOwnMessage && (
           <Text style={styles.senderName}>{senderName}</Text>
         )}
@@ -498,6 +670,70 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             senderName={isGroupChat ? senderName : undefined}
             senderPhotoURL={item.senderPhotoURL}
           />
+        ) : item.imageUrl ? (
+          /* Image Message Bubble */
+          <View style={[
+            styles.messageWrapper,
+            isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
+          ]}>
+            <View style={[
+              styles.messageBubble,
+              isOwnMessage ? styles.ownBubble : styles.otherBubble
+            ]}>
+              {/* Image */}
+              <Image 
+                source={{ uri: item.imageUrl }} 
+                style={styles.messageImage}
+                resizeMode="cover"
+                onError={(error) => {
+                  console.error('Image load error:', error);
+                }}
+                onLoad={() => {
+                  console.log('Image loaded successfully');
+                }}
+              />
+              
+              {/* Text below image if present */}
+              {item.text && (
+                <Text style={[
+                  styles.messageText,
+                  isOwnMessage ? styles.ownText : styles.otherText,
+                  styles.imageText
+                ]}>
+                  {item.text}
+                </Text>
+              )}
+              
+              {/* Enhanced Inline Translation for image messages */}
+              {item.text && messageTranslations[item.id] && (
+                <TranslatedMessageDisplay
+                  translation={messageTranslations[item.id].text}
+                  language={messageTranslations[item.id].language}
+                  isOwn={isOwnMessage}
+                  onClose={() => handleCloseTranslation(item.id)}
+                  culturalHints={messageTranslations[item.id].culturalHints}
+                  intelligentProcessing={messageTranslations[item.id].intelligentProcessing}
+                />
+              )}
+              
+              <View style={styles.messageBottomRow}>
+                <Text style={styles.timestamp}>
+                  {new Date(item.timestamp).toLocaleTimeString()}
+                </Text>
+                {/* Translation button for text portion only */}
+                {item.text && !messageTranslations[item.id] && (
+                  <TranslationButton
+                    messageId={item.id}
+                    originalText={item.text}
+                    onTranslationComplete={handleTranslationComplete}
+                    isOwn={isOwnMessage}
+                    message={item}
+                    chatMessages={messages}
+                  />
+                )}
+              </View>
+            </View>
+          </View>
         ) : (
           /* Text Message Bubble */
           <View style={[
@@ -554,7 +790,16 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           isOwnMessage={isOwnMessage}
           maxAvatars={isGroupChat ? 5 : 3}
         />
-      </View>
+        
+        {/* Message Reactions */}
+        {messageReactions[item.id] && messageReactions[item.id].length > 0 && (
+          <ReactionDisplay
+            reactions={messageReactions[item.id]}
+            currentUserId={user?.uid || ''}
+            onReactionPress={(emoji) => handleReactionSelect(emoji)}
+          />
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -592,7 +837,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         <SmartSuggestions
           currentMessage={newMessage}
           chatId={chatId}
-          recentMessages={messages.filter(m => m.chatId === chatId)}
+          recentMessages={messages.filter((m: Message) => m.chatId === chatId)}
           currentUserId={user?.uid || ''}
           currentUserName={user?.displayName || 'User'}
           onSuggestionSelect={handleSuggestionSelect}
@@ -605,20 +850,45 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             onRecordingComplete={handleVoiceRecordingComplete}
             onRecordingCancel={handleVoiceRecordingCancel}
           />
+          
+          {/* Selected Image Preview */}
+          {selectedImage && (
+            <View style={styles.selectedImageContainer}>
+              <Image 
+                source={{ uri: selectedImage }} 
+                style={styles.selectedImagePreview}
+                resizeMode="cover"
+              />
+              <TouchableOpacity 
+                style={styles.removeImageButton}
+                onPress={handleRemoveImage}
+              >
+                <Text style={styles.removeImageText}>×</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
           <TextInput
             style={styles.textInput}
             value={newMessage}
             onChangeText={handleTextChange}
-            placeholder="Type a message..."
+            placeholder={selectedImage ? t('addMessage') : t('typeMessage')}
             multiline
             maxLength={1000}
           />
+          <ImagePickerButton
+            onImageSelected={handleImageSelected}
+            disabled={!networkState.isConnected}
+          />
           <TouchableOpacity
-            style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
+            style={[
+              styles.sendButton, 
+              (!newMessage.trim() && !selectedImage) && styles.sendButtonDisabled
+            ]}
             onPress={handleSendMessage}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() && !selectedImage}
           >
-            <Text style={styles.sendButtonText}>Send</Text>
+            <Text style={styles.sendButtonText}>{t('send')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -683,6 +953,17 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           }}
         />
       )}
+
+
+      {/* Reaction Picker Modal */}
+      <ReactionPicker
+        visible={showReactionPicker}
+        onReactionSelect={handleReactionSelect}
+        onClose={handleReactionPickerClose}
+        messageId={selectedMessageId || ''}
+        currentReactions={selectedMessageId ? (messageReactions[selectedMessageId] || []).filter(r => r.userId === user?.uid).map(r => r.emoji) : []}
+      />
+      
     </SafeAreaView>
   );
 }
@@ -1024,5 +1305,47 @@ const styles = StyleSheet.create({
   },
   otherTranslationText: {
     color: '#374151',
+  },
+  // Image message styles
+  messageImage: {
+    width: 250,
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  imageText: {
+    marginTop: 4,
+  },
+  // Selected image preview styles
+  selectedImageContainer: {
+    position: 'relative',
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  selectedImagePreview: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ff4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  removeImageText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    lineHeight: 16,
   },
 });

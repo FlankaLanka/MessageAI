@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../store/useStore';
+import { useLocalization } from '../../hooks/useLocalization';
 import { AuthService } from '../../services/auth';
 import { MessageService } from '../../services/messages';
 import { DirectChatService } from '../../services/directChat';
@@ -28,6 +29,7 @@ interface ChatListScreenProps {
 }
 
 export default function ChatListScreen({ onNavigateToChat, onNavigateToCreateGroup }: ChatListScreenProps) {
+  const { t } = useLocalization();
   const { user, chats, setChats, setError } = useStore();
   const [showUserSearch, setShowUserSearch] = useState(false);
   
@@ -270,16 +272,16 @@ export default function ChatListScreen({ onNavigateToChat, onNavigateToCreateGro
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
-        <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>Chats</Text>
+        <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>{t('messages')}</Text>
             <View style={[styles.headerButtons, isSmallScreen && styles.headerButtonsSmall]}>
               <TouchableOpacity onPress={() => setShowUserSearch(true)} style={[styles.newChatButton, isSmallScreen && styles.newChatButtonSmall]}>
-                <Text style={[styles.newChatButtonText, isSmallScreen && styles.newChatButtonTextSmall]}>+ Chat</Text>
+                <Text style={[styles.newChatButtonText, isSmallScreen && styles.newChatButtonTextSmall]}>+ {t('messages')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={onNavigateToCreateGroup} style={[styles.createGroupButton, isSmallScreen && styles.createGroupButtonSmall]}>
-                <Text style={[styles.createGroupButtonText, isSmallScreen && styles.createGroupButtonTextSmall]}>+ Group</Text>
+                <Text style={[styles.createGroupButtonText, isSmallScreen && styles.createGroupButtonTextSmall]}>+ {t('createGroup')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSignOut} style={[styles.signOutButton, isSmallScreen && styles.signOutButtonSmall]}>
-                <Text style={[styles.signOutText, isSmallScreen && styles.signOutTextSmall]}>Sign Out</Text>
+                <Text style={[styles.signOutText, isSmallScreen && styles.signOutTextSmall]}>{t('signOut')}</Text>
               </TouchableOpacity>
             </View>
       </View>
@@ -317,7 +319,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
@@ -329,11 +331,13 @@ const styles = StyleSheet.create({
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 4,
     flexWrap: 'wrap',
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   headerButtonsSmall: {
-    gap: 6,
+    gap: 3,
   },
   title: {
     fontSize: 24,
@@ -344,44 +348,53 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   signOutButton: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     backgroundColor: '#ff4444',
     borderRadius: 8,
     minHeight: 32,
     justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 90,
   },
   signOutButtonSmall: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 6,
     paddingVertical: 6,
     minHeight: 28,
+    minWidth: 80,
   },
   signOutText: {
     color: '#fff',
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: 11,
+    textAlign: 'center',
   },
   signOutTextSmall: {
-    fontSize: 10,
+    fontSize: 9,
   },
   newChatButton: {
     backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 8,
-    marginRight: 8,
+    marginRight: 6,
+    minWidth: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   newChatButtonSmall: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     paddingVertical: 6,
+    minWidth: 70,
   },
   newChatButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
   },
   newChatButtonTextSmall: {
-    fontSize: 12,
+    fontSize: 10,
   },
   chatList: {
     flex: 1,
@@ -444,26 +457,31 @@ const styles = StyleSheet.create({
         color: '#999',
       },
       createGroupButton: {
-        paddingHorizontal: 12,
+        paddingHorizontal: 8,
         paddingVertical: 6,
         backgroundColor: '#28a745',
         borderRadius: 6,
         minHeight: 32,
         justifyContent: 'center',
+        alignItems: 'center',
+        minWidth: 90,
+        marginRight: 6,
       },
       createGroupButtonSmall: {
-        paddingHorizontal: 8,
+        paddingHorizontal: 6,
         paddingVertical: 4,
         minHeight: 28,
+        minWidth: 80,
       },
-      createGroupButtonText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '600',
-      },
-      createGroupButtonTextSmall: {
-        fontSize: 10,
-      },
+  createGroupButtonText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  createGroupButtonTextSmall: {
+    fontSize: 9,
+  },
       groupAvatar: {
         backgroundColor: '#28a745',
       },

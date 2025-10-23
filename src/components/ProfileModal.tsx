@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from '../types';
+import { useLocalization } from '../hooks/useLocalization';
 import OnlineIndicator from './OnlineIndicator';
 
 interface ProfileModalProps {
@@ -33,6 +34,7 @@ export default function ProfileModal({
   onViewFullProfile,
   onMessage,
 }: ProfileModalProps) {
+  const { t } = useLocalization();
   if (!user) return null;
 
   const handleDeleteAccount = () => {
@@ -91,7 +93,7 @@ export default function ProfileModal({
                 </Text>
               )}
               <Text style={[styles.userStatus, isSmallScreen && styles.userStatusSmall]}>
-                {isOnline ? 'Online' : 'Offline'}
+                {isOnline ? t('online') : t('offline')}
               </Text>
             </View>
 

@@ -8,9 +8,11 @@
 - **TypeScript**: Type-safe JavaScript development
 - **Expo Router**: File-based navigation system
 - **Zustand**: Lightweight state management
-- **react-native-gifted-chat**: Chat UI components
 - **AsyncStorage**: Local data persistence
 - **Expo SQLite**: Local database for offline caching
+- **expo-image-picker**: Image selection from gallery/camera
+- **expo-haptics**: Haptic feedback for reactions
+- **expo-av**: Audio recording and playback for voice messages
 
 ### Backend Technologies
 - **Firebase Auth**: User authentication and authorization
@@ -26,11 +28,24 @@
 - **OpenAI TTS API**: Text-to-speech for translated audio (optional)
 - **Cultural Context Detection**: AI-powered slang, idiom, and cultural reference identification
 - **Simple Translation Service**: Real-time, on-demand translation with OpenAI integration
-- **Localization Service**: Multi-language support for 12 languages with native names
+- **Localization Service**: Multi-language support for English, Spanish, and Chinese Simplified
 - **Translation UI Components**: Inline translation buttons and displays within message bubbles
 - **Language Synchronization**: Translation language automatically syncs with user's language preference
 - **Unified Settings Interface**: Combined Settings & Translation Settings in single modal
 - **Store Integration**: User language preference automatically updates translation language
+- **Language Persistence**: AsyncStorage for language choice across app restarts
+- **Comprehensive Localization**: All screens, components, and modals fully localized
+
+### Image Upload & Message Reactions Technologies
+- **expo-image-picker**: Image selection from gallery/camera with permissions
+- **Firebase Storage**: Secure image upload with security rules
+- **expo-haptics**: Haptic feedback for long-press reactions
+- **Message Reactions**: Facebook Messenger-style reaction display with emojis
+- **Reaction Management**: Add, remove, and change reactions with real-time updates
+- **Offline Support**: Image messages and reactions queue locally and sync when online
+- **Enhanced Message Types**: Extended Message interface with imageUrl and reactions fields
+- **SQLite Schema**: Added reactions column and pending_reactions table for offline support
+- **Translation Integration**: Text portions of image messages are translated and stored in RAG
 
 ### Development Tools
 - **Expo CLI**: Development and build commands

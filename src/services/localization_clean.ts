@@ -94,42 +94,6 @@ export interface LocalizationStrings {
   failedToSendMessage: string;
   failedToSendVoiceMessage: string;
   failedToAddReaction: string;
-  noMessagesYet: string;
-  // Profile and Auth strings
-  saveChanges: string;
-  saving: string;
-  editPicture: string;
-  uploading: string;
-  deletePicture: string;
-  deleteAccount: string;
-  emailCannotBeChanged: string;
-  enterFirstName: string;
-  enterLastName: string;
-  enterPhoneNumber: string;
-  phoneNumberWillBeVerified: string;
-  welcomeBack: string;
-  signInToAccount: string;
-  signingIn: string;
-  signInWithGoogle: string;
-  dontHaveAccount: string;
-  createAccount: string;
-  signUpForAccount: string;
-  creatingAccount: string;
-  signUpWithGoogle: string;
-  alreadyHaveAccount: string;
-  connectWithWorld: string;
-  loadingProfile: string;
-  userNotFound: string;
-  goBack: string;
-  deletedUser: string;
-  userDeletedAccount: string;
-  // Language settings
-  translationLanguage: string;
-  messagesWillBeTranslatedTo: string;
-  culturalHints: string;
-  showCulturalContext: string;
-  removeCachedTranslations: string;
-  selectLanguage: string;
 }
 
 // English (default)
@@ -226,42 +190,6 @@ const en: LocalizationStrings = {
   failedToSendMessage: 'Failed to send message',
   failedToSendVoiceMessage: 'Failed to send voice message',
   failedToAddReaction: 'Failed to add reaction',
-  noMessagesYet: 'No messages yet',
-  // Profile and Auth strings
-  saveChanges: 'Save Changes',
-  saving: 'Saving...',
-  editPicture: 'Edit Picture',
-  uploading: 'Uploading...',
-  deletePicture: 'Delete Picture',
-  deleteAccount: 'Delete Account',
-  emailCannotBeChanged: 'Email cannot be changed',
-  enterFirstName: 'Enter your first name',
-  enterLastName: 'Enter your last name',
-  enterPhoneNumber: 'Enter your phone number',
-  phoneNumberWillBeVerified: 'Phone number will be verified later',
-  welcomeBack: 'Welcome Back!',
-  signInToAccount: 'Sign in to your account',
-  signingIn: 'Signing In...',
-  signInWithGoogle: 'Sign in with Google',
-  dontHaveAccount: "Don't have an account? Sign up",
-  createAccount: 'Create Account',
-  signUpForAccount: 'Sign up for a new account',
-  creatingAccount: 'Creating Account...',
-  signUpWithGoogle: 'Sign up with Google',
-  alreadyHaveAccount: 'Already have an account? Sign in',
-  connectWithWorld: 'Connect with the world',
-  loadingProfile: 'Loading profile...',
-  userNotFound: 'User not found',
-  goBack: 'Go Back',
-  deletedUser: 'Deleted User',
-  userDeletedAccount: 'This user has deleted their account',
-  // Language settings
-  translationLanguage: 'Translation Language',
-  messagesWillBeTranslatedTo: 'Messages will be translated to:',
-  culturalHints: 'Cultural Hints',
-  showCulturalContext: 'Show cultural context for slang, idioms, and cultural references',
-  removeCachedTranslations: 'Remove cached translations to free up storage space',
-  selectLanguage: 'Select Language',
 };
 
 // Spanish
@@ -358,42 +286,6 @@ const es: LocalizationStrings = {
   failedToSendMessage: 'Error al enviar mensaje',
   failedToSendVoiceMessage: 'Error al enviar mensaje de voz',
   failedToAddReaction: 'Error al agregar reacción',
-  noMessagesYet: 'Aún no hay mensajes',
-  // Profile and Auth strings
-  saveChanges: 'Guardar Cambios',
-  saving: 'Guardando...',
-  editPicture: 'Editar Foto',
-  uploading: 'Subiendo...',
-  deletePicture: 'Eliminar Foto',
-  deleteAccount: 'Eliminar Cuenta',
-  emailCannotBeChanged: 'El correo no se puede cambiar',
-  enterFirstName: 'Ingresa tu nombre',
-  enterLastName: 'Ingresa tu apellido',
-  enterPhoneNumber: 'Ingresa tu número de teléfono',
-  phoneNumberWillBeVerified: 'El número de teléfono se verificará más tarde',
-  welcomeBack: '¡Bienvenido de nuevo!',
-  signInToAccount: 'Inicia sesión en tu cuenta',
-  signingIn: 'Iniciando sesión...',
-  signInWithGoogle: 'Iniciar sesión con Google',
-  dontHaveAccount: '¿No tienes cuenta? Regístrate',
-  createAccount: 'Crear Cuenta',
-  signUpForAccount: 'Regístrate para una nueva cuenta',
-  creatingAccount: 'Creando cuenta...',
-  signUpWithGoogle: 'Registrarse con Google',
-  alreadyHaveAccount: '¿Ya tienes cuenta? Inicia sesión',
-  connectWithWorld: 'Conecta con el mundo',
-  loadingProfile: 'Cargando perfil...',
-  userNotFound: 'Usuario no encontrado',
-  goBack: 'Volver',
-  deletedUser: 'Usuario Eliminado',
-  userDeletedAccount: 'Este usuario ha eliminado su cuenta',
-  // Language settings
-  translationLanguage: 'Idioma de Traducción',
-  messagesWillBeTranslatedTo: 'Los mensajes se traducirán a:',
-  culturalHints: 'Pistas Culturales',
-  showCulturalContext: 'Mostrar contexto cultural para jerga, modismos y referencias culturales',
-  removeCachedTranslations: 'Eliminar traducciones en caché para liberar espacio de almacenamiento',
-  selectLanguage: 'Seleccionar Idioma',
 };
 
 // Chinese (Simplified)
@@ -490,42 +382,6 @@ const zh: LocalizationStrings = {
   failedToSendMessage: '发送消息失败',
   failedToSendVoiceMessage: '发送语音消息失败',
   failedToAddReaction: '添加反应失败',
-  noMessagesYet: '暂无消息',
-  // Profile and Auth strings
-  saveChanges: '保存更改',
-  saving: '保存中...',
-  editPicture: '编辑照片',
-  uploading: '上传中...',
-  deletePicture: '删除照片',
-  deleteAccount: '删除账户',
-  emailCannotBeChanged: '邮箱无法更改',
-  enterFirstName: '输入您的名字',
-  enterLastName: '输入您的姓氏',
-  enterPhoneNumber: '输入您的电话号码',
-  phoneNumberWillBeVerified: '电话号码稍后将进行验证',
-  welcomeBack: '欢迎回来！',
-  signInToAccount: '登录您的账户',
-  signingIn: '登录中...',
-  signInWithGoogle: '使用 Google 登录',
-  dontHaveAccount: '没有账户？注册',
-  createAccount: '创建账户',
-  signUpForAccount: '注册新账户',
-  creatingAccount: '创建账户中...',
-  signUpWithGoogle: '使用 Google 注册',
-  alreadyHaveAccount: '已有账户？登录',
-  connectWithWorld: '与世界连接',
-  loadingProfile: '加载个人资料中...',
-  userNotFound: '用户未找到',
-  goBack: '返回',
-  deletedUser: '已删除用户',
-  userDeletedAccount: '此用户已删除其账户',
-  // Language settings
-  translationLanguage: '翻译语言',
-  messagesWillBeTranslatedTo: '消息将翻译为：',
-  culturalHints: '文化提示',
-  showCulturalContext: '显示俚语、习语和文化参考的文化背景',
-  removeCachedTranslations: '删除缓存的翻译以释放存储空间',
-  selectLanguage: '选择语言',
 };
 
 // Available languages

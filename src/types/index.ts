@@ -31,6 +31,15 @@ export interface Translation {
   culturalHints?: CulturalHint[];  // Hints for translated text
 }
 
+// Message reaction types
+export interface MessageReaction {
+  emoji: string;           // The emoji character (👍, ❤️, 😂, etc.)
+  userId: string;          // User who reacted
+  userName: string;        // Display name
+  userPhotoURL?: string;   // User avatar
+  timestamp: number;       // When reaction was added
+}
+
 // Message types
 export interface Message {
   id: string;
@@ -45,6 +54,7 @@ export interface Message {
   timestamp: number;
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   chatId: string;
+  reactions?: MessageReaction[]; // Array of reactions on the message
   // Translation and cultural context fields
   originalLang?: string;         // Language of original message
   translations?: Translation[];  // Available translations

@@ -410,7 +410,7 @@ export default function ProfileScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>Profile</Text>
+          <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>{t('profile')}</Text>
         </View>
 
         {/* Profile Picture */}
@@ -443,7 +443,7 @@ export default function ProfileScreen() {
               disabled={isUploadingImage}
             >
               <Text style={styles.editPictureButtonText}>
-                {isUploadingImage ? 'Uploading...' : 'Edit Picture'}
+                {isUploadingImage ? t('uploading') : t('editPicture')}
               </Text>
             </TouchableOpacity>
             
@@ -454,7 +454,7 @@ export default function ProfileScreen() {
                 disabled={isUploadingImage}
               >
                 <Text style={styles.deletePictureButtonText}>
-                  Delete Picture
+                  {t('deletePicture')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -465,52 +465,52 @@ export default function ProfileScreen() {
         <View style={styles.form}>
           {/* Email (Read-only) */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Email</Text>
+            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('email')}</Text>
             <TextInput
               style={[styles.input, styles.readOnlyInput]}
               value={user?.email || ''}
               editable={false}
-              placeholder="Email"
+              placeholder={t('email')}
             />
-            <Text style={styles.readOnlyNote}>Email cannot be changed</Text>
+            <Text style={styles.readOnlyNote}>{t('emailCannotBeChanged')}</Text>
           </View>
 
           {/* First Name */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>First Name</Text>
+            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('firstName')}</Text>
             <TextInput
               style={[styles.input, isSmallScreen && styles.inputSmall]}
               value={firstName}
               onChangeText={setFirstName}
-              placeholder="Enter your first name"
+              placeholder={t('enterFirstName')}
               editable={!isSaving}
             />
           </View>
 
           {/* Last Name */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Last Name</Text>
+            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('lastName')}</Text>
             <TextInput
               style={[styles.input, isSmallScreen && styles.inputSmall]}
               value={lastName}
               onChangeText={setLastName}
-              placeholder="Enter your last name"
+              placeholder={t('enterLastName')}
               editable={!isSaving}
             />
           </View>
 
           {/* Phone Number */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Phone Number</Text>
+            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('phoneNumber')}</Text>
             <TextInput
               style={[styles.input, isSmallScreen && styles.inputSmall]}
               value={phoneNumber}
               onChangeText={setPhoneNumber}
-              placeholder="Enter your phone number"
+              placeholder={t('enterPhoneNumber')}
               keyboardType="phone-pad"
               editable={!isSaving}
             />
-            <Text style={styles.phoneNote}>Phone number will be verified later</Text>
+            <Text style={styles.phoneNote}>{t('phoneNumberWillBeVerified')}</Text>
           </View>
         </View>
 
@@ -522,7 +522,7 @@ export default function ProfileScreen() {
             disabled={isSaving}
           >
             <Text style={styles.saveButtonText}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? t('saving') : t('saveChanges')}
             </Text>
           </TouchableOpacity>
 
@@ -543,7 +543,7 @@ export default function ProfileScreen() {
             onPress={handleDeleteAccount}
             disabled={isSaving}
           >
-            <Text style={styles.deleteButtonText}>Delete Account</Text>
+            <Text style={styles.deleteButtonText}>{t('deleteAccount')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

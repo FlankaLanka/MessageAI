@@ -376,7 +376,7 @@ export class MessageService {
           ...lastMessageContent,
           type: 'image',
           imageUrl: message.imageUrl,
-          text: '📷 Image'
+          text: message.text ? `📷 ${message.text}` : '📷 Image'
         };
       } else {
         // Text message
@@ -484,6 +484,130 @@ export class MessageService {
       console.log('User left chat successfully:', chatId);
     } catch (error) {
       console.error('Error leaving chat:', error);
+      throw error;
+    }
+  }
+
+  // Send an image message with offline support
+  static async sendImageMessage(
+    chatId: string,
+    senderId: string,
+    imageUri: string,
+    text?: string,  // Optional text with image
+    senderName?: string,
+    senderPhotoURL?: string
+  ): Promise<Message> {
+    const messageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const message: Message = {
+      id: messageId,
+      chatId,
+      senderId,
+      text, // Optional text with image
+      imageUrl: imageUri, // Will be updated with Firebase Storage URL after upload
+      timestamp: Date.now(),
+      status: 'sending'
+    };
+    
+    // Only add senderName and senderPhotoURL if they have values
+    if (senderName) {
+      message.senderName = senderName;
+    }
+    if (senderPhotoURL) {
+      message.senderPhotoURL = senderPhotoURL;
+    }
+
+    try {
+      if (networkService.isOnline()) {
+        // Online: Upload image file to Firebase Storage first
+        const { MediaService } = await import('./media');
+        const imageUrl = await MediaService.uploadChatImage(chatId, messageId, imageUri);
+        
+        // Update message with Firebase Storage URL
+        const messageData: any = {
+          senderId,
+          imageUrl,
+          timestamp: serverTimestamp(),
+          status: 'sending',
+          chatId,
+        };
+        
+        // Add text if provided
+        if (text) {
+          messageData.text = text;
+        }
+        
+        // Only add senderName and senderPhotoURL if they have values
+        if (senderName) {
+          messageData.senderName = senderName;
+        }
+        if (senderPhotoURL) {
+          messageData.senderPhotoURL = senderPhotoURL;
+        }
+
+        const docRef = await addDoc(collection(firestore, 'messages', chatId, 'threads'), messageData);
+        
+        // Update local message with server ID and Firebase Storage URL
+        const sentMessage: Message = {
+          ...message,
+          id: docRef.id,
+          imageUrl,
+          status: 'sent'
+        };
+
+
+        // Save to local storage
+        await syncService.queueMessage(sentMessage);
+
+        // Update chat document with latest message info
+        await this.updateChatLastMessage(chatId, sentMessage);
+
+        // Send local notification for image message sent
+        try {
+          const { notificationService } = await import('./notifications');
+          await notificationService.sendLocalMessageNotification(
+            senderName || 'You',
+            text || 'Image',
+            'image'
+          );
+        } catch (error) {
+          console.error('Error sending local notification for image message:', error);
+          // Don't throw error - notifications are not critical for message sending
+        }
+
+        // Update status to sent after a short delay
+        setTimeout(async () => {
+          try {
+            await updateDoc(doc(firestore, 'messages', chatId, 'threads', docRef.id), {
+              status: 'sent'
+            });
+          } catch (error) {
+            console.error('Error updating image message status:', error);
+          }
+        }, 1000);
+
+        return sentMessage;
+      } else {
+        // Offline: Queue message locally
+        console.log('Offline: Queueing image message locally');
+        
+        const offlineMessage: Message = {
+          ...message,
+          status: 'sending'
+        };
+
+        await syncService.queueMessage(offlineMessage);
+        return offlineMessage;
+      }
+    } catch (error) {
+      console.error('Error sending image message:', error);
+      
+      // Update message status to failed
+      const failedMessage: Message = {
+        ...message,
+        status: 'failed'
+      };
+      
+      await syncService.queueMessage(failedMessage);
       throw error;
     }
   }

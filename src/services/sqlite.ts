@@ -86,6 +86,12 @@ class SQLiteService {
       console.log('transcriptionLang column already exists or error adding:', error);
     }
 
+    try {
+      await this.db.execAsync(`ALTER TABLE messages ADD COLUMN reactions TEXT;`);
+    } catch (error) {
+      console.log('reactions column already exists or error adding:', error);
+    }
+
     // Create users table
     await this.db.execAsync(`
       CREATE TABLE IF NOT EXISTS users (
@@ -156,6 +162,21 @@ class SQLiteService {
       );
     `);
 
+    // Create pending reactions table
+    await this.db.execAsync(`
+      CREATE TABLE IF NOT EXISTS pending_reactions (
+        id TEXT PRIMARY KEY,
+        chatId TEXT NOT NULL,
+        messageId TEXT NOT NULL,
+        emoji TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        userName TEXT NOT NULL,
+        userPhotoURL TEXT,
+        timestamp INTEGER NOT NULL,
+        action TEXT NOT NULL
+      );
+    `);
+
     // Create indexes for better performance
     await this.db.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_messages_chatId ON messages(chatId);
@@ -176,8 +197,8 @@ class SQLiteService {
       try {
         await this.db.runAsync(
           `INSERT OR REPLACE INTO messages 
-           (id, chatId, senderId, text, imageUrl, audioUrl, audioDuration, audioSize, originalText, originalLang, translations, transcription, transcriptionLang, timestamp, status, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, chatId, senderId, text, imageUrl, audioUrl, audioDuration, audioSize, originalText, originalLang, translations, transcription, transcriptionLang, reactions, timestamp, status, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             message.id,
             message.chatId,
@@ -192,6 +213,7 @@ class SQLiteService {
             message.translations ? JSON.stringify(message.translations) : null,
             message.transcription || null,
             message.transcriptionLang || null,
+            message.reactions ? JSON.stringify(message.reactions) : null,
             message.timestamp,
             message.status,
             Date.now(),
@@ -272,6 +294,13 @@ class SQLiteService {
         if ((row as any).transcription) {
           message.transcription = (row as any).transcription as string;
         }
+        if ((row as any).reactions) {
+          try {
+            message.reactions = JSON.parse((row as any).reactions as string);
+          } catch (error) {
+            console.error('Error parsing reactions JSON:', error);
+          }
+        }
 
         return message;
       });
@@ -340,6 +369,13 @@ class SQLiteService {
         }
         if ((row as any).transcription) {
           message.transcription = (row as any).transcription as string;
+        }
+        if ((row as any).reactions) {
+          try {
+            message.reactions = JSON.parse((row as any).reactions as string);
+          } catch (error) {
+            console.error('Error parsing reactions JSON:', error);
+          }
         }
 
         return message;
@@ -549,6 +585,60 @@ class SQLiteService {
       console.log('All pending read receipts cleared');
     } catch (error) {
       console.error('Error clearing pending read receipts:', error);
+      throw error;
+    }
+  }
+
+  // Reaction Queue Methods
+  async queueReaction(reaction: any): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO pending_reactions 
+         (id, chatId, messageId, emoji, userId, userName, userPhotoURL, timestamp, action)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          reaction.id,
+          reaction.chatId,
+          reaction.messageId,
+          reaction.emoji,
+          reaction.userId,
+          reaction.userName,
+          reaction.userPhotoURL || null,
+          reaction.timestamp,
+          reaction.action
+        ]
+      );
+      console.log('Reaction queued:', reaction.id);
+    } catch (error) {
+      console.error('Error queueing reaction:', error);
+      throw error;
+    }
+  }
+
+  async getPendingReactions(): Promise<any[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      const result = await this.db.getAllAsync(
+        'SELECT * FROM pending_reactions ORDER BY timestamp ASC'
+      );
+      return result;
+    } catch (error) {
+      console.error('Error getting pending reactions:', error);
+      throw error;
+    }
+  }
+
+  async clearPendingReactions(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      await this.db.runAsync('DELETE FROM pending_reactions');
+      console.log('All pending reactions cleared');
+    } catch (error) {
+      console.error('Error clearing pending reactions:', error);
       throw error;
     }
   }

@@ -13,9 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthService } from '../../services/auth';
 import { useStore } from '../../store/useStore';
+import { useLocalization } from '../../hooks/useLocalization';
 import { showErrorAlert, showSuccessAlert } from '../../utils/crossPlatformAlert';
 
 export default function AuthScreen() {
+  const { t } = useLocalization();
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { setUser, setAuthenticated, setError } = useStore();
@@ -119,12 +121,12 @@ export default function AuthScreen() {
 
   const renderSignInForm = () => (
     <View style={styles.form}>
-      <Text style={styles.formTitle}>Welcome Back!</Text>
-      <Text style={styles.formSubtitle}>Sign in to your account</Text>
+      <Text style={styles.formTitle}>{t('welcomeBack')}</Text>
+      <Text style={styles.formSubtitle}>{t('signInToAccount')}</Text>
       
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder={t('email')}
         value={signInEmail}
         onChangeText={setSignInEmail}
         keyboardType="email-address"
@@ -134,7 +136,7 @@ export default function AuthScreen() {
       
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder={t('password')}
         value={signInPassword}
         onChangeText={setSignInPassword}
         secureTextEntry
@@ -148,7 +150,7 @@ export default function AuthScreen() {
         disabled={isLoading}
       >
         <Text style={styles.buttonText}>
-          {isLoading ? 'Signing In...' : 'Sign In'}
+          {isLoading ? t('signingIn') : t('signIn')}
         </Text>
       </TouchableOpacity>
       
@@ -157,7 +159,7 @@ export default function AuthScreen() {
         onPress={handleGoogleSignIn}
         disabled={isLoading}
       >
-        <Text style={styles.googleButtonText}>Sign in with Google</Text>
+        <Text style={styles.googleButtonText}>{t('signInWithGoogle')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity
@@ -165,7 +167,7 @@ export default function AuthScreen() {
         onPress={() => setIsSignUp(true)}
       >
         <Text style={styles.switchButtonText}>
-          Don't have an account? Sign up
+          {t('dontHaveAccount')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -173,13 +175,13 @@ export default function AuthScreen() {
 
   const renderSignUpForm = () => (
     <View style={styles.form}>
-      <Text style={styles.formTitle}>Create Account</Text>
-      <Text style={styles.formSubtitle}>Sign up for a new account</Text>
+      <Text style={styles.formTitle}>{t('createAccount')}</Text>
+      <Text style={styles.formSubtitle}>{t('signUpForAccount')}</Text>
       
       <View style={styles.nameRow}>
         <TextInput
           style={[styles.input, styles.nameInput]}
-          placeholder="First Name"
+          placeholder={t('firstName')}
           value={firstName}
           onChangeText={setFirstName}
           autoCapitalize="words"
@@ -187,7 +189,7 @@ export default function AuthScreen() {
         />
         <TextInput
           style={[styles.input, styles.nameInput]}
-          placeholder="Last Name"
+          placeholder={t('lastName')}
           value={lastName}
           onChangeText={setLastName}
           autoCapitalize="words"
@@ -197,7 +199,7 @@ export default function AuthScreen() {
       
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder={t('email')}
         value={signUpEmail}
         onChangeText={setSignUpEmail}
         keyboardType="email-address"
@@ -207,7 +209,7 @@ export default function AuthScreen() {
       
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder={t('password')}
         value={signUpPassword}
         onChangeText={setSignUpPassword}
         secureTextEntry
@@ -217,7 +219,7 @@ export default function AuthScreen() {
       
       <TextInput
         style={styles.input}
-        placeholder="Confirm Password"
+        placeholder={t('confirmPassword')}
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
@@ -231,7 +233,7 @@ export default function AuthScreen() {
         disabled={isLoading}
       >
         <Text style={styles.buttonText}>
-          {isLoading ? 'Creating Account...' : 'Sign Up'}
+          {isLoading ? t('creatingAccount') : t('signUp')}
         </Text>
       </TouchableOpacity>
       
@@ -240,7 +242,7 @@ export default function AuthScreen() {
         onPress={handleGoogleSignIn}
         disabled={isLoading}
       >
-        <Text style={styles.googleButtonText}>Sign up with Google</Text>
+        <Text style={styles.googleButtonText}>{t('signUpWithGoogle')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity
@@ -248,7 +250,7 @@ export default function AuthScreen() {
         onPress={() => setIsSignUp(false)}
       >
         <Text style={styles.switchButtonText}>
-          Already have an account? Sign in
+          {t('alreadyHaveAccount')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -270,7 +272,7 @@ export default function AuthScreen() {
               MessageAI
             </Text>
             <Text style={[styles.tagline, isSmallScreen && styles.taglineSmall]}>
-              Connect with the world
+              {t('connectWithWorld')}
             </Text>
           </View>
           

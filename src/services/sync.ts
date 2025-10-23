@@ -2,6 +2,7 @@ import { Message } from '../types';
 import { platformStorageService } from './storage';
 import { networkService } from './network';
 import { MessageService } from './messages';
+import { ReactionService } from './reactions';
 import { firestore } from './firebase';
 
 class SyncService {
@@ -84,6 +85,9 @@ class SyncService {
         }
       }
 
+      // Sync queued reactions
+      await this.syncQueuedReactions();
+
       console.log('Sync completed successfully');
     } catch (error) {
       console.error('Error during sync:', error);
@@ -94,17 +98,45 @@ class SyncService {
 
   private async syncMessage(message: Message) {
     try {
-      // Sync existing message to Firestore
-      const sentMessage = await MessageService.syncExistingMessage(message);
-
-      // Update local message with server response
-      await platformStorageService.saveMessage(sentMessage);
+      // Handle image messages that need upload
+      if (message.imageUrl && !message.imageUrl.startsWith('http')) {
+        // This is a local image URI that needs to be uploaded
+        const { MediaService } = await import('./media');
+        const uploadedImageUrl = await MediaService.uploadChatImage(
+          message.chatId,
+          message.id,
+          message.imageUrl
+        );
+        
+        // Update message with uploaded image URL
+        const updatedMessage = {
+          ...message,
+          imageUrl: uploadedImageUrl
+        };
+        
+        // Sync the updated message
+        const sentMessage = await MessageService.syncExistingMessage(updatedMessage);
+        await platformStorageService.saveMessage(sentMessage);
+      } else {
+        // Regular message sync
+        const sentMessage = await MessageService.syncExistingMessage(message);
+        await platformStorageService.saveMessage(sentMessage);
+      }
       
       console.log(`Message ${message.id} synced successfully`);
     } catch (error) {
       console.error(`Error syncing message ${message.id}:`, error);
       this.retryCount++;
       throw error;
+    }
+  }
+
+  private async syncQueuedReactions() {
+    try {
+      await ReactionService.syncQueuedReactions();
+      console.log('Queued reactions synced successfully');
+    } catch (error) {
+      console.error('Error syncing queued reactions:', error);
     }
   }
 

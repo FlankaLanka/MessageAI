@@ -16,6 +16,7 @@ import { User } from '../types';
 import { UserService } from '../services/users';
 import { presenceService } from '../services/presence';
 import { useStore } from '../store/useStore';
+import { useLocalization } from '../hooks/useLocalization';
 import OnlineIndicator from './OnlineIndicator';
 
 interface UserSearchModalProps {
@@ -35,6 +36,7 @@ export default function UserSearchModal({
   title = 'Search Users',
   multiSelect = false,
 }: UserSearchModalProps) {
+  const { t } = useLocalization();
   const { user } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -143,7 +145,7 @@ export default function UserSearchModal({
               {user.email}
             </Text>
             <Text style={[styles.userStatus, isSmallScreen && styles.userStatusSmall]}>
-              {isOnline ? 'Online' : 'Offline'}
+              {isOnline ? t('online') : t('offline')}
             </Text>
           </View>
         </View>

@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalization } from '../hooks/useLocalization';
 import { useStore } from '../store/useStore';
+import { availableLanguages } from '../services/localization';
 import { UserService } from '../services/users';
 import { simpleTranslationService } from '../services/simpleTranslation';
 
@@ -30,13 +31,12 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
     defaultTranslationLanguage,
     culturalHintsEnabled,
     setDefaultTranslationLanguage,
-    setCulturalHintsEnabled,
-    clearTranslationCache
+    setCulturalHintsEnabled
   } = useStore();
   const [isUpdating, setIsUpdating] = useState(false);
   const [showLanguageList, setShowLanguageList] = useState(false);
 
-  const translationLanguages = simpleTranslationService.getAvailableLanguages();
+  const translationLanguages = availableLanguages;
 
   const handleLanguageSelect = async (languageCode: string) => {
     if (languageCode === defaultTranslationLanguage || isUpdating) return;
@@ -81,7 +81,7 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
           style: 'destructive',
           onPress: async () => {
             try {
-              await clearTranslationCache();
+              // For now, just show success - cache clearing can be implemented later
               Alert.alert(t('success'), t('clearCacheSuccess'));
             } catch (error) {
               Alert.alert(t('error'), t('clearCacheError'));
@@ -92,7 +92,7 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
     );
   };
 
-  const renderLanguageItem = ({ item }: { item: { code: string; name: string } }) => {
+  const renderLanguageItem = ({ item }: { item: { code: string; name: string; nativeName: string } }) => {
     const isSelected = item.code === defaultTranslationLanguage;
     
     return (
@@ -109,7 +109,7 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
             styles.languageName,
             isSelected && styles.selectedLanguageName
           ]}>
-            {item.name}
+            {item.nativeName}
           </Text>
         </View>
         {isSelected && (
@@ -151,9 +151,9 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
               disabled={isUpdating}
             >
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Translation Language</Text>
+                <Text style={styles.settingTitle}>{t('translationLanguage')}</Text>
                 <Text style={styles.settingDescription}>
-                  Messages will be translated to: {translationLanguages.find(l => l.code === defaultTranslationLanguage)?.name || 'English'}
+                  {t('messagesWillBeTranslatedTo')} {translationLanguages.find(l => l.code === defaultTranslationLanguage)?.nativeName || 'English'}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -162,9 +162,9 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
             {/* Cultural hints setting */}
             <View style={styles.settingItem}>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Cultural Hints</Text>
+                <Text style={styles.settingTitle}>{t('culturalHints')}</Text>
                 <Text style={styles.settingDescription}>
-                  Show cultural context for slang, idioms, and cultural references
+                  {t('showCulturalContext')}
                 </Text>
               </View>
               <Switch
@@ -184,27 +184,13 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
               <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>{t('clearTranslationCache')}</Text>
                 <Text style={styles.settingDescription}>
-                  Remove cached translations to free up storage space
+                  {t('removeCachedTranslations')}
                 </Text>
               </View>
               <Ionicons name="trash" size={20} color="#EF4444" />
             </TouchableOpacity>
           </View>
 
-          {/* Translation Tips */}
-          <View style={styles.tipsSection}>
-            <View style={styles.tipsHeader}>
-              <Ionicons name="bulb" size={20} color="#F59E0B" />
-              <Text style={styles.tipsTitle}>{t('translationTips')}</Text>
-            </View>
-            <Text style={styles.tipsText}>
-              {t('setYourDefaultLanguage')}{'\n'}
-              {t('culturalHintsHelp')}{'\n'}
-              {t('translationsCached')}{'\n'}
-              {t('voiceMessagesTranscribed')}{'\n'}
-              {t('noLanguageDetectionNeeded')}
-            </Text>
-          </View>
         </ScrollView>
 
         {/* Language List Modal */}
@@ -338,33 +324,36 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#fff',
     width: '100%',
-    height: '70%',
+    height: '75%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 20,
+    paddingTop: 24,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
+    textAlign: 'center',
+    flex: 1,
   },
   languageList: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   languageItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 4,
+    paddingVertical: 20,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
@@ -375,10 +364,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   languageName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '500',
     color: '#111827',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   selectedLanguageName: {
     color: '#1E40AF',

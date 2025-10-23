@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { PanGestureHandler, State, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 import { Chat, User } from '../types';
+import { useLocalization } from '../hooks/useLocalization';
 import { DirectChatService } from '../services/directChat';
 
 interface SwipeableChatItemProps {
@@ -34,6 +35,7 @@ export default function SwipeableChatItem({
   onUnmute,
   isSmallScreen = false
 }: SwipeableChatItemProps) {
+  const { t } = useLocalization();
   const translateX = useRef(new Animated.Value(0)).current;
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [showWebActions, setShowWebActions] = useState(false);
@@ -45,10 +47,10 @@ export default function SwipeableChatItem({
   // Get display name - for direct chats, get other user's name
   const displayName = React.useMemo(() => {
     if (isGroup) {
-      return chat.name || 'Group';
+      return chat.name || t('createGroup');
     } else {
       // For direct chats, use other user's display name or fallback to email
-      return otherUser?.displayName || otherUser?.firstName + ' ' + otherUser?.lastName || otherUser?.email || 'Chat';
+      return otherUser?.displayName || otherUser?.firstName + ' ' + otherUser?.lastName || otherUser?.email || t('messages');
     }
   }, [isGroup, chat.name, otherUser?.displayName, otherUser?.firstName, otherUser?.lastName, otherUser?.email]);
 
@@ -244,7 +246,7 @@ export default function SwipeableChatItem({
               </View>
               
               <Text style={[styles.lastMessage, isMuted && styles.mutedText]} numberOfLines={1}>
-                {chat.lastMessage?.text || 'No messages yet'}
+                {chat.lastMessage?.text || t('noMessagesYet')}
               </Text>
             </View>
             
@@ -354,7 +356,7 @@ export default function SwipeableChatItem({
                 </View>
                 
                 <Text style={[styles.lastMessage, isMuted && styles.mutedText]} numberOfLines={1}>
-                  {chat.lastMessage?.text || 'No messages yet'}
+                  {chat.lastMessage?.text || t('noMessagesYet')}
                 </Text>
               </View>
               
