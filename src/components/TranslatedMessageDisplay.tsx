@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { CulturalHint } from '../types';
 import { useLocalization } from '../hooks/useLocalization';
+import { useStore } from '../store/useStore';
 
 interface TranslatedMessageDisplayProps {
   translation: string;
@@ -29,13 +30,17 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
   intelligentProcessing
 }) => {
   const { t } = useLocalization();
+  const { translationMode } = useStore();
   const [showDetails, setShowDetails] = useState(false);
-  const hasDetails = culturalHints.length > 0 || intelligentProcessing;
+  const hasDetails = (translationMode === 'advanced' || translationMode === 'auto-advanced') && (culturalHints.length > 0 || intelligentProcessing);
+  const hasCulturalHints = (translationMode === 'advanced' || translationMode === 'auto-advanced') && culturalHints.length > 0;
+  const hasIntelligentProcessing = (translationMode === 'advanced' || translationMode === 'auto-advanced') && intelligentProcessing;
 
   return (
     <View style={[
       styles.container,
-      isOwn ? styles.ownContainer : styles.otherContainer
+      isOwn ? styles.ownContainer : styles.otherContainer,
+      !hasCulturalHints && styles.compactContainer
     ]}>
       <View style={styles.header}>
         <View style={styles.languageInfo}>
@@ -72,13 +77,15 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
               />
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons 
-              name="close" 
-              size={14} 
-              color={isOwn ? '#BFDBFE' : '#6B7280'} 
-            />
-          </TouchableOpacity>
+          {translationMode !== 'auto' && translationMode !== 'auto-advanced' && (
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons 
+                name="close" 
+                size={14} 
+                color={isOwn ? '#BFDBFE' : '#6B7280'} 
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       
@@ -90,17 +97,36 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
       </Text>
 
       {showDetails && hasDetails && (
-        <View style={styles.detailsContainer}>
+        <ScrollView 
+          style={[
+            styles.detailsContainer,
+            !hasCulturalHints && styles.compactDetailsContainer
+          ]} 
+          nestedScrollEnabled={true}
+          showsVerticalScrollIndicator={true}
+          scrollEnabled={true}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
           {intelligentProcessing && (
-            <View style={styles.intelligentProcessing}>
+            <View style={[
+              styles.intelligentProcessing,
+              !hasCulturalHints && styles.compactIntelligentProcessing
+            ]}>
               <Text style={[
                 styles.detailsTitle,
                 isOwn ? styles.ownDetailsTitle : styles.otherDetailsTitle
               ]}>
                 🧠 {t('aiAnalysis')}
               </Text>
-              <View style={styles.processingGrid}>
-                <View style={styles.processingItem}>
+              <View style={[
+                styles.processingGrid,
+                !hasCulturalHints && styles.compactProcessingGrid
+              ]}>
+                <View style={[
+                  styles.processingItem,
+                  !hasCulturalHints && styles.compactProcessingItem
+                ]}>
                   <Text style={[
                     styles.processingLabel,
                     isOwn ? styles.ownProcessingLabel : styles.otherProcessingLabel
@@ -114,7 +140,10 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                     {intelligentProcessing.intent}
                   </Text>
                 </View>
-                <View style={styles.processingItem}>
+                <View style={[
+                  styles.processingItem,
+                  !hasCulturalHints && styles.compactProcessingItem
+                ]}>
                   <Text style={[
                     styles.processingLabel,
                     isOwn ? styles.ownProcessingLabel : styles.otherProcessingLabel
@@ -128,7 +157,10 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                     {intelligentProcessing.tone}
                   </Text>
                 </View>
-                <View style={styles.processingItem}>
+                <View style={[
+                  styles.processingItem,
+                  !hasCulturalHints && styles.compactProcessingItem
+                ]}>
                   <Text style={[
                     styles.processingLabel,
                     isOwn ? styles.ownProcessingLabel : styles.otherProcessingLabel
@@ -143,7 +175,10 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                   </Text>
                 </View>
                 {intelligentProcessing.entities.length > 0 && (
-                  <View style={styles.processingItem}>
+                  <View style={[
+                  styles.processingItem,
+                  !hasCulturalHints && styles.compactProcessingItem
+                ]}>
                     <Text style={[
                       styles.processingLabel,
                       isOwn ? styles.ownProcessingLabel : styles.otherProcessingLabel
@@ -170,7 +205,7 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
               ]}>
                 🌍 {t('culturalHints')} ({culturalHints.length})
               </Text>
-              <ScrollView style={styles.hintsScroll} nestedScrollEnabled>
+              <View style={styles.hintsContainer}>
                 {culturalHints.map((hint, index) => (
                   <View key={index} style={styles.hintItem}>
                     <View style={styles.hintHeader}>
@@ -203,10 +238,10 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
                     )}
                   </View>
                 ))}
-              </ScrollView>
+              </View>
             </View>
           )}
-        </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -215,11 +250,13 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
 const styles = StyleSheet.create({
   container: {
     marginTop: 4,
-    padding: 6,
+    padding: 8, // Increased padding for better spacing
     borderRadius: 6,
     borderWidth: 1,
     alignSelf: 'flex-start',
-    maxWidth: '90%',
+    maxWidth: '95%', // Increased max width for more space
+    flexShrink: 1, // Allow container to shrink if needed
+    minWidth: 200, // Ensure minimum width for content
   },
   ownContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -228,6 +265,10 @@ const styles = StyleSheet.create({
   otherContainer: {
     backgroundColor: 'rgba(59, 130, 246, 0.05)',
     borderColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  compactContainer: {
+    padding: 6, // Reduced padding when no cultural hints
+    maxWidth: '85%', // Slightly smaller when compact
   },
   header: {
     flexDirection: 'row',
@@ -292,6 +333,13 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    maxHeight: 250, // Increased height to accommodate more content
+    minHeight: 0, // Ensure it can shrink
+  },
+  compactDetailsContainer: {
+    maxHeight: 120, // Much smaller height when no cultural hints
+    marginTop: 4, // Reduced margin
+    paddingTop: 4, // Reduced padding
   },
   detailsTitle: {
     fontSize: 12,
@@ -308,19 +356,31 @@ const styles = StyleSheet.create({
   intelligentProcessing: {
     marginBottom: 12,
   },
+  compactIntelligentProcessing: {
+    marginBottom: 6, // Reduced margin when no cultural hints
+  },
   processingGrid: {
-    gap: 4,
+    gap: 6, // Increased gap for better spacing
+  },
+  compactProcessingGrid: {
+    gap: 3, // Reduced gap when no cultural hints
   },
   processingItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
+    alignItems: 'flex-start',
+    marginBottom: 4,
+    paddingVertical: 2,
+  },
+  compactProcessingItem: {
+    marginBottom: 2, // Reduced margin when no cultural hints
+    paddingVertical: 1, // Reduced padding when no cultural hints
   },
   processingLabel: {
     fontSize: 10,
     fontWeight: '600',
-    width: 60,
+    width: 70, // Increased width for labels
     opacity: 0.8,
+    flexShrink: 0, // Prevent label from shrinking
   },
   ownProcessingLabel: {
     color: '#BFDBFE',
@@ -332,6 +392,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     flex: 1,
     opacity: 0.9,
+    flexWrap: 'wrap',
+    lineHeight: 14, // Better line height for readability
   },
   ownProcessingValue: {
     color: '#FFFFFF',
@@ -343,8 +405,9 @@ const styles = StyleSheet.create({
   culturalHints: {
     marginTop: 8,
   },
-  hintsScroll: {
-    maxHeight: 120,
+  hintsContainer: {
+    // Remove height limitation - let the parent ScrollView handle scrolling
+    paddingTop: 4, // Add some top padding for better spacing
   },
   hintItem: {
     marginBottom: 8,

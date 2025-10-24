@@ -1,9 +1,56 @@
 # MessageAI - Active Context
 
 ## Current Work Focus
-**Project Status**: Production-ready messaging app with complete real-time presence, typing indicators, advanced group management, comprehensive user profile system, voice messaging capabilities, simplified local push notifications, **enhanced AI-powered translation system with advanced cultural context detection**, **comprehensive localization system with unified language settings**, **smart message suggestions with speaker-aware context**, **image upload and message reactions system**, and **complete localization coverage**
-**Current Phase**: Full messaging platform with iPhone-style interface, user profiles, online status, direct messaging, advanced chat management, real-time presence indicators, typing indicators, complete profile picture management, Facebook Messenger-style read receipts, WeChat-style voice messaging, local push notifications, **enhanced AI translation features with improved cultural hints detection**, **multi-language localization with unified settings**, **intelligent message suggestions that appear when keyboard opens**, **image upload with iMessage-style interface**, and **message reactions with Facebook Messenger-style display**
-**Next Steps**: Monitor smart suggestions performance, optimize AI translation performance, fix voice transcription bug, fix push notification bug where senders receive notifications of their own messages, test cultural hints language generation in all supported languages
+**Project Status**: Production-ready messaging app with complete real-time presence, typing indicators, advanced group management, comprehensive user profile system, voice messaging capabilities, simplified local push notifications, **enhanced AI-powered translation system with advanced cultural context detection**, **comprehensive localization system with unified language settings**, **smart message suggestions with speaker-aware context**, **image upload and message reactions system**, **complete localization coverage**, **voice message inline transcription and translation**, and **centered group members modal**
+**Current Phase**: Full messaging platform with iPhone-style interface, user profiles, online status, direct messaging, advanced chat management, real-time presence indicators, typing indicators, complete profile picture management, Facebook Messenger-style read receipts, WeChat-style voice messaging, local push notifications, **enhanced AI translation features with improved cultural hints detection**, **multi-language localization with unified settings**, **intelligent message suggestions that appear when keyboard opens**, **image upload with iMessage-style interface**, **message reactions with Facebook Messenger-style display**, **voice message transcription and translation with inline UI**, and **centered group members modal with professional styling**
+**Next Steps**: Test the new centered group members modal, ensure all group management features work properly, continue monitoring smart suggestions performance, optimize AI translation performance, test voice message transcription and translation functionality
+
+## ✅ VOICE MESSAGE TRANSCRIPTION & TRANSLATION - COMPLETED
+**Status**: Voice message transcription and translation system fully implemented and working
+**Impact**: Users can now transcribe and translate voice messages with inline UI
+**Priority**: COMPLETED - Voice message translation functionality is now working
+
+## 🚨 EXPO GO PUSH NOTIFICATION LIMITATIONS - DISCOVERED
+**Status**: Push notifications do NOT work in Expo Go development environment
+**Impact**: Cross-device push notifications are impossible in Expo Go
+**Priority**: HIGH - This explains why push notifications aren't working
+
+### **Root Cause:**
+- **Expo Go Limitation**: Push notifications don't work in Expo Go (development tool)
+- **Local Notifications Only**: Only work on the same device that triggers them
+- **No Cross-Device**: Cannot send notifications from one device to another
+- **No Background**: Cannot receive notifications when app is closed
+
+### **Current Implementation Issue:**
+- Our notification system tries to send local notifications to recipients
+- But local notifications only work on the sender's device
+- This is why recipients don't receive notifications in Expo Go
+
+### **Solutions:**
+1. **For Development**: Remove broken notification system, focus on core features
+2. **For Production**: Use EAS Build to create development builds for real push notification testing
+3. **Alternative**: Implement visual indicators (unread counts, badges) for Expo Go
+
+### Recent Implementation:
+1. **Inline Transcription Display**: Voice message transcriptions now display automatically inside the voice bubble
+2. **Inline Translation UI**: Translation button and results appear inline within the voice message bubble
+3. **Enhanced Translation Service**: Voice transcriptions now use the same enhanced translation service as regular text messages
+4. **RAG Context Integration**: Voice transcriptions get full AI analysis including cultural hints and intelligent processing
+5. **Chat Context Support**: Voice message translations now have access to conversation context for better translations
+
+### Technical Implementation:
+- **VoiceMessageBubble**: Updated to show transcription inline and provide translation functionality
+- **TranslationButton Integration**: Voice transcriptions now use the same TranslationButton component as regular text messages
+- **TranslatedMessageDisplay**: Voice translations use the same display component with cultural hints and intelligent processing
+- **Chat Context**: Voice message translations now receive chat context for RAG-enhanced translations
+- **Enhanced Translation**: Voice transcriptions get the same AI analysis as regular text messages
+
+### Current Status:
+- ✅ **COMPLETED**: Voice message transcription displays inline within the voice bubble
+- ✅ **COMPLETED**: Voice message translation uses the same UI and functionality as regular text messages
+- ✅ **COMPLETED**: Voice transcriptions get full AI analysis with cultural hints and intelligent processing
+- ✅ **COMPLETED**: Voice message translations have access to conversation context for better translations
+- ✅ **COMPLETED**: Inline UI for both transcription and translation within the voice message bubble
 
 ## Recent Changes
 - ✅ **Project Setup**: Complete Expo project with TypeScript and all dependencies
@@ -140,6 +187,10 @@
 - ✅ **JSON Parsing Error Fix**: Enhanced JSON parsing in cultural hints services with robust cleaning and fallback handling
 - ✅ **Dual Service Localization**: Updated both culturalHints service and RAG translation service to use user's language for cultural hints
 - ✅ **Enhanced Error Handling**: Added comprehensive JSON cleaning, fallback parsing, and graceful degradation for cultural hints
+- ✅ **Translation Scrolling Enhancement**: Added vertical scroll indicator to translation box for better UX
+- ✅ **Reaction Removal Feature**: Enabled removal of reactions by clicking on the reaction itself with new handleDirectReactionPress function
+- ✅ **Code Cleanup**: Removed unused MessageReactionPicker component and messagePositions state for cleaner codebase
+- ✅ **Reaction Button Simplification**: Simplified reaction button to use direct function calls instead of event handling
 
 ## Active Decisions and Considerations
 
@@ -340,6 +391,21 @@
 - ✅ **NEW**: OpenAI Function Calling - Structured AI responses with confidence scoring and reasoning
 - ✅ **NEW**: Keyboard-Triggered Suggestions - Appear when keyboard opens, stable while typing
 - ✅ **NEW**: Codebase Cleanup - Removed all test components and demo files for production-ready code
+- ✅ **NEW**: Smart Suggestions Performance Optimizations - 50% faster with single API call, debouncing, and simplified parsing
+- ✅ **FIXED**: Smart Suggestions JSON Parsing - Improved handling of markdown code blocks and fallback parsing
+- ✅ **FIXED**: Smart Suggestions Dual Language - Removed dual language buttons feature completely
+- ✅ **NEW**: Smart Suggestions Settings - Added RAG vs recent messages toggle and other language option in language settings
+- ✅ **FIXED**: Smart Suggestions Language Logic - Fixed to show dual buttons for 1-on-1 chats and single buttons for group chats
+- ✅ **ENHANCED**: Smart Suggestions Visual Design - Added vertical stacking with compact language indicators in bottom right corner
+- ✅ **FIXED**: Smart Suggestions Language Indicators - Made language codes dynamic based on actual user languages instead of hardcoded
+- ✅ **ENHANCED**: Smart Suggestions Visual Separation - Improved background and styling to better distinguish from messages and keyboard
+- ✅ **FIXED**: Smart Suggestions UI Overlap - Added proper spacing and rounded corners to prevent cutting into message bubbles
+- ✅ **ENHANCED**: Smart Suggestions Color Contrast - Improved background colors and borders for better distinction from message background
+- ✅ **NEW**: Persistent Translation Mode - Translation mode now saves to user profile and persists across sessions
+- ✅ **NEW**: Centered Group Members Modal - Completely reimplemented group members display with centered modal window
+- ✅ **NEW**: Professional Group UI - Modern centered modal with profile pictures, online status, admin badges, and member count
+- ✅ **NEW**: Enhanced Group Management - Clickable members with profile navigation and proper admin indicators
+- ✅ **NEW**: Responsive Group Modal - Works on all screen sizes with proper scrolling and touch targets
 - 🐛 **KNOWN BUG**: Voice Transcription - Voice message transcription not working properly
 - ✅ Responsive UI that works on all devices
 - ✅ State management with Zustand

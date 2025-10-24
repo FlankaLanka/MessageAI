@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from '../types';
 import { UserService } from '../services/users';
 import { GroupService } from '../services/groups';
+import { useLocalization } from '../hooks/useLocalization';
 
 interface AddMembersModalProps {
   visible: boolean;
@@ -32,6 +33,7 @@ export default function AddMembersModal({
   onClose,
   onMembersAdded,
 }: AddMembersModalProps) {
+  const { t } = useLocalization();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
@@ -107,7 +109,7 @@ export default function AddMembersModal({
       ]);
     } catch (error: any) {
       console.error('Error adding members:', error);
-      Alert.alert('Error', error.message || 'Failed to add members to group');
+      Alert.alert(t('error'), error.message || t('failedToAddMembers'));
     } finally {
       setIsAdding(false);
     }
@@ -165,11 +167,11 @@ export default function AddMembersModal({
         <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
           <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
             <Text style={[styles.cancelButtonText, isSmallScreen && styles.cancelButtonTextSmall]}>
-              Cancel
+              {t('cancel')}
             </Text>
           </TouchableOpacity>
           <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>
-            Add Members
+            {t('addMembers')}
           </Text>
           <TouchableOpacity
             onPress={handleAddMembers}
@@ -185,7 +187,7 @@ export default function AddMembersModal({
               (selectedUsers.length === 0 || isAdding) && styles.addButtonTextDisabled,
               isSmallScreen && styles.addButtonTextSmall
             ]}>
-              {isAdding ? 'Adding...' : `Add (${selectedUsers.length})`}
+              {isAdding ? t('adding') : `${t('add')} (${selectedUsers.length})`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -193,11 +195,12 @@ export default function AddMembersModal({
         <View style={styles.searchContainer}>
           <TextInput
             style={[styles.searchInput, isSmallScreen && styles.searchInputSmall]}
-            placeholder="Search by name or email..."
+            placeholder={t('searchByEmail')}
             value={searchTerm}
             onChangeText={setSearchTerm}
             autoCapitalize="none"
             autoCorrect={false}
+            keyboardType="email-address"
           />
         </View>
 
@@ -210,10 +213,10 @@ export default function AddMembersModal({
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, isSmallScreen && styles.emptyTextSmall]}>
                 {searchTerm.length < 3 
-                  ? 'Type at least 3 characters to search' 
+                  ? t('typeAtLeast3Characters') 
                   : isSearching 
-                    ? 'Searching...' 
-                    : 'No users found'
+                    ? t('searching') 
+                    : t('noUsersFound')
                 }
               </Text>
             </View>

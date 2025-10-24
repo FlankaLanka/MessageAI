@@ -2,8 +2,8 @@
 
 ## 1. Overview
 MessageAI is a cross-platform messaging app inspired by WhatsApp, built using **React Native + Expo** with **Firebase** backend services.  
-The MVP focuses on creating a **robust, reliable messaging experience** with real-time sync, offline queueing, push notifications, **AI-powered translation features**, **image upload and message reactions**, and **comprehensive localization support**.  
-The app now includes advanced AI translation capabilities with cultural context detection, image messaging, message reactions, and multi-language support for English, Spanish, and Chinese Simplified.
+The MVP focuses on creating a **robust, reliable messaging experience** with real-time sync, offline queueing, push notifications, **AI-powered translation features**, **image upload and message reactions**, **comprehensive localization support**, and **voice message inline transcription and translation**.  
+The app now includes advanced AI translation capabilities with cultural context detection, image messaging, message reactions, multi-language support for English, Spanish, and Chinese Simplified, and voice message transcription and translation with inline UI.
 
 ---
 
@@ -53,7 +53,10 @@ The MVP must meet the following:
 25. **Smart Message Suggestions**: iPhone-style intelligent suggestions with speaker-aware context.
 26. **Cultural Hints Language Localization**: Cultural hints explanations in user's interface language.
 27. **Enhanced JSON Parsing**: Robust parsing for cultural hints with fallback handling.
-28. Deployment: Running on local emulator/simulator with Firebase backend (Expo Go or EAS build).
+28. **Voice Message Inline Transcription**: Voice message transcriptions display automatically inside the voice bubble.
+29. **Voice Message Inline Translation**: Voice message translations use the same UI and functionality as regular text messages.
+30. **Enhanced Voice Translation**: Voice transcriptions get full AI analysis with cultural hints and intelligent processing.
+31. Deployment: Running on local emulator/simulator with Firebase backend (Expo Go or EAS build).
 
 ---
 

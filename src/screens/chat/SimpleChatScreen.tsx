@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -12,9 +12,11 @@ import {
   Dimensions,
   Image,
   Modal,
-  Keyboard
+  Keyboard,
+  Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../../store/useStore';
 import { Message, User, Chat } from '../../types';
 import { useLocalization } from '../../hooks/useLocalization';
@@ -26,18 +28,21 @@ import { presenceService, TypingData } from '../../services/presence';
 import OnlineIndicator from '../../components/OnlineIndicator';
 import TypingIndicator from '../../components/TypingIndicator';
 import ProfileModal from '../../components/ProfileModal';
-import GroupParticipantsModal from '../../components/GroupParticipantsModal';
 import AddMembersModal from '../../components/AddMembersModal';
+import GroupMembersModal from '../../components/GroupMembersModal';
 import ReadReceipt from '../../components/ReadReceipt';
 import VoiceRecorder from '../../components/VoiceRecorder';
 import VoiceMessageBubble from '../../components/VoiceMessageBubble';
-import VoiceMessagePreview from '../../components/VoiceMessagePreview';
+import { VoiceMessagePreviewModal } from '../../components/VoiceMessagePreviewModal';
 import ImagePickerButton from '../../components/ImagePickerButton';
 import ReactionPicker from '../../components/ReactionPicker';
 import ReactionDisplay from '../../components/ReactionDisplay';
+import { ReactionButton } from '../../components/ReactionButton';
 import { TranslationButton } from '../../components/TranslationButton';
 import { TranslatedMessageDisplay } from '../../components/TranslatedMessageDisplay';
-import SmartSuggestions from '../../components/SmartSuggestions';
+import { TranslationIndicator } from '../../components/TranslationIndicator';
+import { SmartSuggestions } from '../../components/SmartSuggestions';
+import { voiceTranslationService } from '../../services/voiceTranslation';
 import { ReadReceiptService, UserReadStatus } from '../../services/readReceipts';
 import { audioService } from '../../services/audio';
 import { supabaseVectorService } from '../../services/supabaseVector';
@@ -60,7 +65,8 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     addMessage, 
     updateMessage, 
     updateChatLastMessage,
-    defaultTranslationLanguage
+    defaultTranslationLanguage,
+    translationMode
   } = useStore();
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -79,9 +85,23 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     culturalHints?: any[]; 
     intelligentProcessing?: any;
   }>>({});
+  const [translatingMessages, setTranslatingMessages] = useState<Set<string>>(new Set());
   
   // Smart suggestions state
   const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
+  const [isSuggestionsMode, setIsSuggestionsMode] = useState(false);
+  
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const waveAnimations = useRef([
+    new Animated.Value(0.3),
+    new Animated.Value(0.3),
+    new Animated.Value(0.3),
+  ]).current;
+  
+  // Text input ref for focusing
+  const textInputRef = useRef<TextInput>(null);
   
   // Translation handlers
   const handleTranslationComplete = (
@@ -129,9 +149,150 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   const { height: screenHeight } = Dimensions.get('window');
   const isSmallScreen = screenHeight < 700;
 
+  const autoTranslateMessages = async (messages: Message[], currentUser: User) => {
+    if (translationMode !== 'auto' && translationMode !== 'auto-advanced') return;
+
+    try {
+      // Import translation services
+      const { simpleTranslationService } = await import('../../services/simpleTranslation');
+      const { enhancedTranslationService } = await import('../../services/enhancedTranslation');
+      
+      // Filter messages that need translation (not from current user and not already translated)
+      const messagesToTranslate = messages.filter(msg => 
+        msg.senderId !== currentUser.uid && 
+        (msg.text || msg.audioUrl) && // Include both text and voice messages
+        !messageTranslations[msg.id] &&
+        !msg.text?.startsWith('[') // Don't translate system messages
+      );
+
+      // Translate each message
+      for (const message of messagesToTranslate) {
+        // Mark message as being translated
+        setTranslatingMessages(prev => new Set([...prev, message.id]));
+        
+        try {
+          if (message.audioUrl && !message.text) {
+            // Voice message - use voice translation service
+            console.log('Auto-translating voice message:', message.id);
+            const voiceResult = await voiceTranslationService.autoTranslateVoiceMessage(
+              message,
+              translationMode,
+              defaultTranslationLanguage
+            );
+            
+            if (voiceResult) {
+              setMessageTranslations(prev => ({
+                ...prev,
+                [message.id]: {
+                  text: voiceResult.translation,
+                  language: defaultTranslationLanguage,
+                  culturalHints: voiceResult.culturalHints || [],
+                  intelligentProcessing: voiceResult.intelligentProcessing || null
+                }
+              }));
+            }
+          } else if (translationMode === 'auto-advanced') {
+            // Use enhanced translation with cultural hints for auto-advanced mode
+            if (enhancedTranslationService.isAvailable()) {
+              const result = await enhancedTranslationService.translateMessage(
+                message,
+                defaultTranslationLanguage,
+                {
+                  useRAG: true,
+                  useCulturalHints: true,
+                  useSimpleTranslation: true,
+                  contextLimit: 10,
+                  confidenceThreshold: 0.6
+                }
+              );
+              
+              // Store the enhanced translation
+              setMessageTranslations(prev => ({
+                ...prev,
+                [message.id]: {
+                  text: result.translation,
+                  language: defaultTranslationLanguage,
+                  culturalHints: result.culturalHints || [],
+                  intelligentProcessing: result.intelligentProcessing
+                }
+              }));
+              
+              // Remove from translating set
+              setTranslatingMessages(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(message.id);
+                return newSet;
+              });
+            } else {
+              // Fallback to simple translation with cultural hints
+              const result = await simpleTranslationService.translateWithCulturalHints(
+                message.text || '', 
+                defaultTranslationLanguage
+              );
+              
+              setMessageTranslations(prev => ({
+                ...prev,
+                [message.id]: {
+                  text: result.translation,
+                  language: defaultTranslationLanguage,
+                  culturalHints: result.culturalHints,
+                  intelligentProcessing: undefined
+                }
+              }));
+              
+              // Remove from translating set
+              setTranslatingMessages(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(message.id);
+                return newSet;
+              });
+            }
+          } else {
+            // Use simple translation for auto mode
+            const translation = await simpleTranslationService.translateText(
+              message.text || '', 
+              defaultTranslationLanguage
+            );
+            
+            // Store the simple translation
+            setMessageTranslations(prev => ({
+              ...prev,
+              [message.id]: {
+                text: translation,
+                language: defaultTranslationLanguage,
+                culturalHints: [],
+                intelligentProcessing: undefined
+              }
+            }));
+            
+            // Remove from translating set
+            setTranslatingMessages(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(message.id);
+              return newSet;
+            });
+          }
+        } catch (error) {
+          console.error(`Error auto-translating message ${message.id}:`, error);
+          // Remove from translating set on error
+          setTranslatingMessages(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(message.id);
+            return newSet;
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in auto-translation:', error);
+    }
+  };
+
   // Load chat info when component mounts
   useEffect(() => {
     if (!user) return;
+    
+    // Set this chat as active to prevent notifications while user is viewing it
+    MessageService.setActiveChat(chatId);
     
     loadChatInfo();
   }, [chatId, user]);
@@ -144,6 +305,10 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       setMessages(newMessages);
       setIsLoading(false);
       
+      // Auto-translate messages if mode is set to 'auto' or 'auto-advanced'
+      if ((translationMode === 'auto' || translationMode === 'auto-advanced') && user) {
+        await autoTranslateMessages(newMessages, user);
+      }
       
       // Mark messages as read when user views the chat
       markMessagesAsRead(newMessages);
@@ -196,6 +361,9 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       stopSync();
       // Clean up reaction subscriptions
       reactionUnsubscribers.forEach(unsub => unsub());
+      
+      // Clear active chat when user navigates away
+      MessageService.setActiveChat(null);
     };
   }, [chatId, user, setMessages]);
 
@@ -277,7 +445,10 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           }
         } else if (currentChat.type === 'group') {
           // For group chat, load all participants
+          console.log('Loading group participants for chat:', currentChat.id);
+          console.log('Chat participants:', currentChat.participants);
           const participants = await UserService.getUsersByIds(currentChat.participants);
+          console.log('Loaded group participants:', participants);
           setGroupParticipants(participants);
         }
       }
@@ -448,6 +619,33 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     }
   };
 
+  const handleDirectReactionPress = async (messageId: string, emoji: string) => {
+    if (!user) return;
+    
+    try {
+      const currentReactions = messageReactions[messageId] || [];
+      const userReaction = currentReactions.find(r => r.userId === user.uid);
+      
+      if (userReaction && userReaction.emoji === emoji) {
+        // Remove reaction if same emoji
+        await ReactionService.removeReaction(chatId, messageId, user.uid);
+      } else {
+        // Add or change reaction
+        await ReactionService.addReaction(
+          chatId,
+          messageId,
+          emoji,
+          user.uid,
+          user.displayName,
+          user.photoURL
+        );
+      }
+    } catch (error) {
+      console.error('Error handling direct reaction:', error);
+      Alert.alert(t('error'), t('failedToAddReaction'));
+    }
+  };
+
   const handleReactionPickerClose = () => {
     setShowReactionPicker(false);
     setSelectedMessageId(null);
@@ -493,24 +691,78 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   // Handle suggestion selection
   const handleSuggestionSelect = (suggestion: string) => {
     setNewMessage(suggestion);
+    // Exit suggestions mode but don't automatically bring up keyboard
+    setIsSuggestionsMode(false);
     setShowSmartSuggestions(false);
+    // Let user decide when to focus the text input
   };
 
-  // Show suggestions when keyboard opens
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+
+  // Focus text input to bring up keyboard
+  const focusTextInput = () => {
+    if (textInputRef.current) {
+      textInputRef.current.focus();
+    }
+  };
+
+  // Toggle between keyboard and suggestions mode
+  const toggleSuggestionsMode = () => {
+    if (!isSuggestionsMode) {
+      // Switching to suggestions mode - hide keyboard and show suggestions
+      Keyboard.dismiss();
+      setIsSuggestionsMode(true);
       setShowSmartSuggestions(true);
-    });
-
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+    } else {
+      // Switching back to keyboard mode - hide suggestions only
+      setIsSuggestionsMode(false);
       setShowSmartSuggestions(false);
-    });
+      // Don't automatically focus the text input - let user decide
+    }
+  };
 
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-    };
-  }, []);
+
+  // Note: Removed keyboard dismissal of smart suggestions
+  // Smart suggestions can now stay open when keyboard is shown
+
+  // Recording timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRecording) {
+      // Start wave animations
+      const animateWaves = () => {
+        waveAnimations.forEach((anim, index) => {
+          Animated.loop(
+            Animated.sequence([
+              Animated.timing(anim, {
+                toValue: 1,
+                duration: 300 + index * 100,
+                useNativeDriver: false,
+              }),
+              Animated.timing(anim, {
+                toValue: 0.3,
+                duration: 300 + index * 100,
+                useNativeDriver: false,
+              }),
+            ])
+          ).start();
+        });
+      };
+      
+      animateWaves();
+      
+      interval = setInterval(() => {
+        setRecordingDuration(prev => prev + 0.1);
+      }, 100);
+    } else {
+      setRecordingDuration(0);
+      // Stop wave animations
+      waveAnimations.forEach(anim => {
+        anim.stopAnimation();
+        anim.setValue(0.3);
+      });
+    }
+    return () => clearInterval(interval);
+  }, [isRecording, waveAnimations]);
 
   const renderHeader = () => {
     if (!chat) return null;
@@ -565,7 +817,10 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           
           <TouchableOpacity 
             style={styles.profileSection}
-            onPress={() => setShowGroupModal(true)}
+            onPress={() => {
+              console.log('Opening group modal with participants:', groupParticipants.length);
+              setShowGroupModal(true);
+            }}
           >
             <View style={styles.groupProfileContainer}>
               {groupParticipants.slice(0, 3).map((participant, index) => (
@@ -643,15 +898,11 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     }
     
     return (
-      <TouchableOpacity
+      <View
         style={[
           styles.messageContainer,
           isOwnMessage ? styles.ownMessage : styles.otherMessage
         ]}
-        onLongPress={() => handleMessageLongPress(item.id)}
-        onPress={() => {}} // Prevent default press behavior
-        activeOpacity={0.7}
-        delayLongPress={500} // 500ms delay for long press
       >
         {isGroupChat && !isOwnMessage && (
           <Text style={styles.senderName}>{senderName}</Text>
@@ -670,6 +921,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             message={item}
             senderName={isGroupChat ? senderName : undefined}
             senderPhotoURL={item.senderPhotoURL}
+            chatMessages={messages} // Pass chat context for RAG analysis
           />
         ) : item.imageUrl ? (
           /* Image Message Bubble */
@@ -733,6 +985,12 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
                   />
                 )}
               </View>
+              
+              {/* Reaction Button */}
+              <ReactionButton
+                onPress={() => handleMessageLongPress(item.id)}
+                isOwn={isOwnMessage}
+              />
             </View>
           </View>
         ) : (
@@ -781,10 +1039,23 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
                   />
                 )}
               </View>
+              
+              {/* Reaction Button */}
+              <ReactionButton
+                onPress={() => handleMessageLongPress(item.id)}
+                isOwn={isOwnMessage}
+              />
             </View>
           </View>
         )}
         
+        {/* Translation Indicator for auto modes */}
+        <TranslationIndicator 
+          isOwn={isOwnMessage}
+          isTranslating={translatingMessages.has(item.id)}
+          isAdvanced={translationMode === 'auto-advanced'}
+        />
+
         {/* Facebook Messenger-style Read Receipt with profile icons */}
         <ReadReceipt 
           readReceipts={readReceipts} 
@@ -797,10 +1068,10 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           <ReactionDisplay
             reactions={messageReactions[item.id]}
             currentUserId={user?.uid || ''}
-            onReactionPress={(emoji) => handleReactionSelect(emoji)}
+            onReactionPress={(emoji) => handleDirectReactionPress(item.id, emoji)}
           />
         )}
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -814,11 +1085,12 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.keyboardContainer} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          enabled={true}
+        >
         {renderHeader()}
 
         <FlatList
@@ -827,6 +1099,12 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           renderItem={renderMessage}
           style={styles.messagesList}
           inverted
+          nestedScrollEnabled={true}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={true}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
         />
 
         <TypingIndicator 
@@ -842,58 +1120,155 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           currentUserId={user?.uid || ''}
           currentUserName={user?.displayName || 'User'}
           onSuggestionSelect={handleSuggestionSelect}
-          onClose={() => setShowSmartSuggestions(false)}
+          onClose={() => {
+            setShowSmartSuggestions(false);
+            setIsSuggestionsMode(false);
+            // Don't automatically bring up keyboard when closing suggestions
+          }}
           visible={showSmartSuggestions}
           otherUserLanguage={otherUser?.defaultLanguage}
           isDirectChat={chat?.type === 'direct'}
           userLanguage={defaultTranslationLanguage}
+          isSuggestionsMode={isSuggestionsMode}
         />
 
         <View style={styles.inputContainer}>
-          <VoiceRecorder
-            onRecordingComplete={handleVoiceRecordingComplete}
-            onRecordingCancel={handleVoiceRecordingCancel}
-          />
-          
-          {/* Selected Image Preview */}
-          {selectedImage && (
-            <View style={styles.selectedImageContainer}>
-              <Image 
-                source={{ uri: selectedImage }} 
-                style={styles.selectedImagePreview}
-                resizeMode="cover"
+          {/* Top Row - Three Buttons */}
+          <View style={styles.topButtonRow}>
+            <TouchableOpacity 
+              style={styles.topButton}
+              onPress={() => {
+                // Trigger image picker using the same logic as ImagePickerButton
+                const { MediaService } = require('../../services/media');
+                MediaService.pickImage().then((result: any) => {
+                  if (result && result.uri) {
+                    handleImageSelected(result.uri);
+                  }
+                }).catch((error: any) => {
+                  console.error('Error picking image:', error);
+                });
+              }}
+            >
+              <Ionicons name="camera" size={20} color="#8E8E93" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.topButton,
+                isRecording && styles.recordingButton
+              ]}
+              onPress={() => {
+                // Trigger voice recording using the same logic as VoiceRecorder
+                const { audioService } = require('../../services/audio');
+                if (isRecording) {
+                  // Stop recording
+                  audioService.stopRecording().then((result: any) => {
+                    if (result && result.uri) {
+                      handleVoiceRecordingComplete(result.uri, result.duration || 0);
+                    }
+                    setIsRecording(false);
+                  }).catch((error: any) => {
+                    console.error('Error stopping recording:', error);
+                    setIsRecording(false);
+                  });
+                } else {
+                  // Start recording
+                  audioService.startRecording().then(() => {
+                    setIsRecording(true);
+                  }).catch((error: any) => {
+                    console.error('Error starting recording:', error);
+                  });
+                }
+              }}
+            >
+              {isRecording ? (
+                <View style={styles.recordingWaves}>
+                  {Array.from({ length: 3 }, (_, i) => (
+                    <Animated.View
+                      key={i}
+                      style={[
+                        styles.wave,
+                        {
+                          backgroundColor: '#FF3B30',
+                          opacity: waveAnimations[i],
+                          transform: [{
+                            scaleY: waveAnimations[i].interpolate({
+                              inputRange: [0.3, 1],
+                              outputRange: [0.5, 1.5],
+                            })
+                          }]
+                        }
+                      ]}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <Ionicons name="mic" size={20} color="#8E8E93" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.topButton,
+                showSmartSuggestions && styles.topButtonActive
+              ]}
+              onPress={toggleSuggestionsMode}
+            >
+              <Ionicons 
+                name={isSuggestionsMode ? "keypad" : "bulb"} 
+                size={20} 
+                color={showSmartSuggestions ? "#007AFF" : "#8E8E93"} 
               />
-              <TouchableOpacity 
-                style={styles.removeImageButton}
-                onPress={handleRemoveImage}
-              >
-                <Text style={styles.removeImageText}>×</Text>
-              </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Bottom Row - Full Width Typing Bar */}
+          <View style={styles.typingBarContainer}>
+            {/* Selected Image Preview */}
+            {selectedImage && (
+              <View style={styles.selectedImageContainer}>
+                <Image 
+                  source={{ uri: selectedImage }} 
+                  style={styles.selectedImagePreview}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity 
+                  style={styles.removeImageButton}
+                  onPress={handleRemoveImage}
+                >
+                  <Text style={styles.removeImageText}>×</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            
+            <TextInput
+              ref={textInputRef}
+              style={styles.typingBar}
+              value={newMessage}
+              onChangeText={handleTextChange}
+              placeholder={selectedImage ? t('addMessage') : t('typeMessage')}
+              multiline
+              maxLength={1000}
+            />
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                (!newMessage.trim() && !selectedImage) && styles.sendButtonDisabled
+              ]}
+              onPress={handleSendMessage}
+              disabled={!newMessage.trim() && !selectedImage}
+            >
+              <Ionicons name="send" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Recording Indicator */}
+          {isRecording && (
+            <View style={styles.recordingIndicator}>
+              <View style={styles.recordingDot} />
+              <Text style={styles.recordingText}>
+                Recording... {Math.floor(recordingDuration)}s
+              </Text>
             </View>
           )}
-          
-          <TextInput
-            style={styles.textInput}
-            value={newMessage}
-            onChangeText={handleTextChange}
-            placeholder={selectedImage ? t('addMessage') : t('typeMessage')}
-            multiline
-            maxLength={1000}
-          />
-          <ImagePickerButton
-            onImageSelected={handleImageSelected}
-            disabled={!networkState.isConnected}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton, 
-              (!newMessage.trim() && !selectedImage) && styles.sendButtonDisabled
-            ]}
-            onPress={handleSendMessage}
-            disabled={!newMessage.trim() && !selectedImage}
-          >
-            <Text style={styles.sendButtonText}>{t('send')}</Text>
-          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
 
@@ -912,9 +1287,9 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         />
       )}
 
-      {/* Group Participants Modal */}
+      {/* Group Members Modal - Centered */}
       {chat?.type === 'group' && (
-        <GroupParticipantsModal
+        <GroupMembersModal
           visible={showGroupModal}
           participants={groupParticipants}
           admins={chat.adminIds || []}
@@ -945,7 +1320,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
 
       {/* Voice Message Preview Modal */}
       {recordedAudio && (
-        <VoiceMessagePreview
+        <VoiceMessagePreviewModal
           visible={showPreviewModal}
           audioUri={recordedAudio.uri}
           duration={recordedAudio.duration}
@@ -1053,6 +1428,7 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
     padding: 12,
     borderRadius: 16,
+    position: 'relative', // Allow absolute positioning of reaction button
   },
   ownBubble: {
     backgroundColor: '#007AFF',
@@ -1077,29 +1453,131 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#eee',
+    paddingTop: 16,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  topButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 40,
+  },
+  topButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topButtonActive: {
+    backgroundColor: '#E3F2FD',
+    borderColor: '#007AFF',
+  },
+  typingBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  typingBar: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 20,
+    maxHeight: 100,
+    minHeight: 40,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    backgroundColor: 'transparent',
+  },
+  suggestionsToggleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    marginBottom: 2,
+  },
+  suggestionsToggleButtonActive: {
+    backgroundColor: '#E3F2FD',
+    borderWidth: 1,
+    borderColor: '#007AFF',
   },
   textInput: {
     flex: 1,
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 12,
-    maxHeight: 100,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginHorizontal: 16,
+    maxHeight: 120,
+    minHeight: 48,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+    lineHeight: 20,
   },
   sendButton: {
     backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    width: 40,
+    height: 40,
     borderRadius: 20,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  recordingButton: {
+    backgroundColor: '#FFEBEE',
+    borderColor: '#FF3B30',
+    borderWidth: 2,
+  },
+  recordingWaves: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  wave: {
+    width: 3,
+    height: 8,
+    marginHorizontal: 1,
+    borderRadius: 1.5,
+    opacity: 0.7,
+  },
+  recordingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 20,
+    alignSelf: 'center',
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+    marginRight: 8,
+  },
+  recordingText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FF3B30',
   },
   sendButtonDisabled: {
     backgroundColor: '#ccc',

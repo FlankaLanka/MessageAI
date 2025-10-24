@@ -26,17 +26,48 @@ interface LanguageSelectorProps {
 export default function LanguageSelector({ visible, onClose }: LanguageSelectorProps) {
   const { t, setLanguage } = useLocalization();
   const { 
-    user,
+    user, 
     setUser,
     defaultTranslationLanguage,
-    culturalHintsEnabled,
+    translationMode,
+    translationCacheEnabled,
+    smartSuggestionsUseRAG,
+    smartSuggestionsIncludeOtherLanguage,
     setDefaultTranslationLanguage,
-    setCulturalHintsEnabled
+    setTranslationMode,
+    setTranslationCacheEnabled,
+    setSmartSuggestionsUseRAG,
+    setSmartSuggestionsIncludeOtherLanguage,
+    clearTranslationCache
   } = useStore();
   const [isUpdating, setIsUpdating] = useState(false);
   const [showLanguageList, setShowLanguageList] = useState(false);
+  const [showTranslationModeList, setShowTranslationModeList] = useState(false);
 
   const translationLanguages = availableLanguages;
+  
+  const translationModes = [
+    { 
+      value: 'manual', 
+      title: t('manualTranslate'), 
+      description: t('manualTranslateDescription') 
+    },
+    { 
+      value: 'auto', 
+      title: t('autoTranslate'), 
+      description: t('autoTranslateDescription') 
+    },
+    { 
+      value: 'advanced', 
+      title: t('advancedTranslate'), 
+      description: t('advancedTranslateDescription') 
+    },
+    { 
+      value: 'auto-advanced', 
+      title: t('autoAdvancedTranslate'), 
+      description: t('autoAdvancedTranslateDescription') 
+    }
+  ];
 
   const handleLanguageSelect = async (languageCode: string) => {
     if (languageCode === defaultTranslationLanguage || isUpdating) return;
@@ -65,6 +96,35 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
       setShowLanguageList(false);
     } catch (error) {
       console.error('Error updating language:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleTranslationModeSelect = async (mode: 'manual' | 'auto' | 'advanced' | 'auto-advanced') => {
+    if (mode === translationMode || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      // Update translation mode
+      setTranslationMode(mode);
+      
+      // Update user profile with new translation mode preference
+      if (user) {
+        await UserService.updateUserProfile(user.uid, {
+          translationMode: mode,
+        });
+        
+        // Update local user state
+        setUser({
+          ...user,
+          translationMode: mode,
+        });
+      }
+      
+      setShowTranslationModeList(false);
+    } catch (error) {
+      console.error('Error updating translation mode:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -159,19 +219,37 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            {/* Cultural hints setting */}
+            {/* Translation mode setting */}
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => setShowTranslationModeList(true)}
+              disabled={isUpdating}
+            >
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>{t('translationMode')}</Text>
+                <Text style={styles.settingDescription}>
+                  {translationMode === 'manual' && t('manualTranslateDescription')}
+                  {translationMode === 'auto' && t('autoTranslateDescription')}
+                  {translationMode === 'advanced' && t('advancedTranslateDescription')}
+                  {translationMode === 'auto-advanced' && t('autoAdvancedTranslateDescription')}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            {/* Translation cache toggle */}
             <View style={styles.settingItem}>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>{t('culturalHints')}</Text>
+                <Text style={styles.settingTitle}>{t('translationCache')}</Text>
                 <Text style={styles.settingDescription}>
-                  {t('showCulturalContext')}
+                  {t('translationCacheDescription')}
                 </Text>
               </View>
               <Switch
-                value={culturalHintsEnabled}
-                onValueChange={setCulturalHintsEnabled}
+                value={translationCacheEnabled}
+                onValueChange={setTranslationCacheEnabled}
                 trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
-                thumbColor={culturalHintsEnabled ? '#fff' : '#fff'}
+                thumbColor={translationCacheEnabled ? '#fff' : '#fff'}
               />
             </View>
 
@@ -189,6 +267,51 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
               </View>
               <Ionicons name="trash" size={20} color="#EF4444" />
             </TouchableOpacity>
+          </View>
+
+          {/* Smart Suggestions Settings */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>💡 Smart Suggestions</Text>
+            
+            {/* RAG vs Recent Messages toggle */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Use RAG Context</Text>
+                <Text style={styles.settingDescription}>
+                  {smartSuggestionsUseRAG 
+                    ? 'Uses historical conversation context (slower but smarter)'
+                    : 'Uses recent messages only (faster but less context)'
+                  }
+                </Text>
+              </View>
+              <Switch
+                value={smartSuggestionsUseRAG}
+                onValueChange={setSmartSuggestionsUseRAG}
+                disabled={isUpdating}
+                trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+                thumbColor={smartSuggestionsUseRAG ? '#fff' : '#fff'}
+              />
+            </View>
+
+            {/* Include other language toggle */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Include Other Language</Text>
+                <Text style={styles.settingDescription}>
+                  {smartSuggestionsIncludeOtherLanguage 
+                    ? 'Shows suggestions in both your language and theirs'
+                    : 'Shows suggestions only in your language'
+                  }
+                </Text>
+              </View>
+              <Switch
+                value={smartSuggestionsIncludeOtherLanguage}
+                onValueChange={setSmartSuggestionsIncludeOtherLanguage}
+                disabled={isUpdating}
+                trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+                thumbColor={smartSuggestionsIncludeOtherLanguage ? '#fff' : '#fff'}
+              />
+            </View>
           </View>
 
         </ScrollView>
@@ -215,6 +338,65 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
                 data={translationLanguages}
                 keyExtractor={(item) => item.code}
                 renderItem={renderLanguageItem}
+                style={styles.languageList}
+                showsVerticalScrollIndicator={false}
+              />
+            </SafeAreaView>
+          </View>
+        </Modal>
+
+        {/* Translation Mode List Modal */}
+        <Modal
+          visible={showTranslationModeList}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowTranslationModeList(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <SafeAreaView style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{t('selectTranslationMode')}</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowTranslationModeList(false)}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={translationModes}
+                keyExtractor={(item) => item.value}
+                renderItem={({ item }) => {
+                  const isSelected = item.value === translationMode;
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.languageItem,
+                        isSelected && styles.selectedLanguageItem
+                      ]}
+                      onPress={() => handleTranslationModeSelect(item.value as 'manual' | 'auto' | 'advanced' | 'auto-advanced')}
+                      disabled={isUpdating}
+                    >
+                      <View style={styles.languageInfo}>
+                        <Text style={[
+                          styles.languageName,
+                          isSelected && styles.selectedLanguageName
+                        ]}>
+                          {item.title}
+                        </Text>
+                        <Text style={[
+                          styles.languageDescription,
+                          isSelected && styles.selectedLanguageDescription
+                        ]}>
+                          {item.description}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
                 style={styles.languageList}
                 showsVerticalScrollIndicator={false}
               />
@@ -368,6 +550,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#111827',
     marginBottom: 4,
+  },
+  languageDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  selectedLanguageDescription: {
+    color: '#3B82F6',
   },
   selectedLanguageName: {
     color: '#1E40AF',

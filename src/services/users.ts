@@ -43,7 +43,8 @@ export class UserService {
           lastSeen: data.lastSeen || Date.now(),
           pushToken: data.pushToken,
           isDeleted: data.isDeleted || false,
-          defaultLanguage: data.defaultLanguage || 'EN', // Add defaultLanguage field
+          defaultLanguage: data.defaultLanguage || 'EN',
+          translationMode: data.translationMode || 'manual',
           createdAt: data.createdAt || Date.now(),
           updatedAt: data.updatedAt || Date.now(),
         } as User;
@@ -139,24 +140,22 @@ export class UserService {
     const currentUserId = searchTerm ? currentUserIdOrSearchTerm : undefined;
     
     try {
-      console.log('Searching users with query:', actualSearchTerm);
+      console.log('Searching users with email query:', actualSearchTerm);
       
-      // Search by email (exact match)
-      const emailQuery = query(collection(firestore, 'users'), where('email', '==', actualSearchTerm));
+      // Search by email (case-insensitive)
+      // Since Firestore doesn't support case-insensitive queries directly,
+      // we'll search for both lowercase and original case
+      const emailQuery = query(collection(firestore, 'users'), where('email', '==', actualSearchTerm.toLowerCase()));
       const emailSnapshot = await getDocs(emailQuery);
       
-      // Search by name (starts with)
-      const nameQuery = query(
-        collection(firestore, 'users'),
-        where('displayName', '>=', actualSearchTerm),
-        where('displayName', '<=', actualSearchTerm + '\uf8ff')
-      );
-      const nameSnapshot = await getDocs(nameQuery);
+      // Also search for original case in case the email was stored with different casing
+      const emailQueryOriginal = query(collection(firestore, 'users'), where('email', '==', actualSearchTerm));
+      const emailSnapshotOriginal = await getDocs(emailQueryOriginal);
       
       const users: User[] = [];
       const userIds = new Set<string>();
       
-      // Process email results
+      // Process lowercase email results
       emailSnapshot.forEach((doc) => {
         if (!userIds.has(doc.id)) {
           const data = doc.data();
@@ -182,8 +181,8 @@ export class UserService {
         }
       });
       
-      // Process name results
-      nameSnapshot.forEach((doc) => {
+      // Process original case email results
+      emailSnapshotOriginal.forEach((doc) => {
         if (!userIds.has(doc.id)) {
           const data = doc.data();
           // Skip deleted users
@@ -213,7 +212,7 @@ export class UserService {
         ? users.filter(user => user.uid !== currentUserId)
         : users;
       
-      console.log(`Found ${filteredUsers.length} users for query: ${actualSearchTerm}`);
+      console.log(`Found ${filteredUsers.length} users for email query: ${actualSearchTerm}`);
       return filteredUsers;
     } catch (error) {
       console.error('Error searching users:', error);

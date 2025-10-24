@@ -180,7 +180,7 @@ export default function VoiceMessagePreview({
               style={styles.reRecordButton}
               onPress={handleReRecord}
             >
-              <Text style={styles.reRecordButtonText}>Re-record</Text>
+              <Text style={styles.reRecordButtonText}>Record Again</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

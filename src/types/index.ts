@@ -12,6 +12,7 @@ export interface User {
   pushToken?: string;
   isDeleted?: boolean;
   defaultLanguage?: string;  // User's default translation language
+  translationMode?: 'manual' | 'auto' | 'advanced' | 'auto-advanced';  // User's translation mode preference
   createdAt: number;
   updatedAt: number;
 }

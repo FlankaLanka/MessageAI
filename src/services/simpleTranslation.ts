@@ -1,6 +1,7 @@
 import { Translation, CulturalHint } from '../types';
 import { culturalHintsService } from './culturalHints';
 import { enhancedTranslationService } from './enhancedTranslation';
+import { useStore } from '../store/useStore';
 
 /**
  * Simple Translation Service
@@ -22,6 +23,15 @@ class SimpleTranslationService {
   async translateText(text: string, targetLang: string): Promise<string> {
     if (!this.apiKey) {
       throw new Error('OpenAI API key not configured');
+    }
+
+    // Check cache first
+    const store = useStore.getState();
+    const textHash = this.createTextHash(text);
+    const cached = store.getCachedTranslation(textHash, targetLang);
+    if (cached) {
+      console.log('Using cached translation for:', text.substring(0, 50));
+      return cached.text;
     }
 
     try {
@@ -53,7 +63,15 @@ class SimpleTranslationService {
       }
 
       const result = await response.json();
-      return result.choices[0].message.content.trim();
+      const translation = result.choices[0].message.content.trim();
+      
+      // Cache the translation
+      store.cacheTranslation(textHash, targetLang, {
+        text: translation,
+        lang: targetLang
+      });
+      
+      return translation;
     } catch (error) {
       console.error('Translation error:', error);
       throw error;
@@ -182,6 +200,20 @@ class SimpleTranslationService {
    */
   isAvailable(): boolean {
     return !!this.apiKey;
+  }
+
+  /**
+   * Create a hash for text to use as cache key
+   */
+  private createTextHash(text: string): string {
+    // Simple hash function for text
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
   }
 }
 

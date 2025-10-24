@@ -1,8 +1,8 @@
 # MessageAI - Progress Tracking
 
 ## What Works
-**Current Status**: Production-ready messaging app with complete user profile management, real-time presence, typing indicators, advanced group management, Facebook Messenger-style read receipts, voice messaging, **AI-powered translation system with cultural context detection**, **smart message suggestions with speaker-aware context**, **image upload and message reactions system**, and **complete localization coverage**
-**Completed**: Full messaging app with authentication, real-time chat, responsive design, complete user profile management, direct messaging, profile picture management, comprehensive bug fixes, Facebook Messenger-style read receipts, voice messaging, **AI translation features**, **intelligent message suggestions**, **image upload system**, **message reactions**, and **comprehensive localization**
+**Current Status**: Production-ready messaging app with complete user profile management, real-time presence, typing indicators, advanced group management, Facebook Messenger-style read receipts, voice messaging, **AI-powered translation system with cultural context detection**, **smart message suggestions with speaker-aware context**, **image upload and message reactions system**, **complete localization coverage**, and **voice message inline transcription and translation**
+**Completed**: Full messaging app with authentication, real-time chat, responsive design, complete user profile management, direct messaging, profile picture management, comprehensive bug fixes, Facebook Messenger-style read receipts, voice messaging, **AI translation features**, **intelligent message suggestions**, **image upload system**, **message reactions**, **comprehensive localization**, and **voice message transcription and translation with inline UI**
 
 ### Completed Items
 - ✅ **Project Documentation**: Comprehensive PRD, Architecture, and Tasks documentation
@@ -134,7 +134,18 @@
 - ✅ **JSON Parsing Error Fix**: Enhanced JSON parsing in cultural hints services with robust cleaning and fallback handling
 - ✅ **Dual Service Localization**: Updated both culturalHints service and RAG translation service to use user's language for cultural hints
 - ✅ **Enhanced Error Handling**: Added comprehensive JSON cleaning, fallback parsing, and graceful degradation for cultural hints
-- 🐛 **KNOWN BUG**: Voice Transcription - Voice message transcription not working properly
+- ✅ **Translation Scrolling Enhancement**: Added vertical scroll indicator to translation box for better UX
+- ✅ **Reaction Removal Feature**: Enabled removal of reactions by clicking on the reaction itself with new handleDirectReactionPress function
+- ✅ **Code Cleanup**: Removed unused MessageReactionPicker component and messagePositions state for cleaner codebase
+- ✅ **Reaction Button Simplification**: Simplified reaction button to use direct function calls instead of event handling
+- ✅ **Voice Message Inline Transcription**: Voice message transcriptions now display automatically inside the voice bubble
+- ✅ **Voice Message Inline Translation**: Voice message translations use the same UI and functionality as regular text messages
+- ✅ **Enhanced Voice Translation**: Voice transcriptions get full AI analysis with cultural hints and intelligent processing
+- ✅ **Voice Translation RAG Context**: Voice message translations have access to conversation context for better translations
+- ✅ **Centered Group Members Modal**: Completely reimplemented group members display with centered modal window
+- ✅ **Professional Group UI**: Modern centered modal with profile pictures, online status, admin badges, and member count
+- ✅ **Enhanced Group Management**: Clickable members with profile navigation and proper admin indicators
+- ✅ **Responsive Group Modal**: Works on all screen sizes with proper scrolling and touch targets
 
 ## What's Left to Build
 
@@ -304,6 +315,7 @@
 - [x] Add cultural context detection for slang, idioms, and cultural references
 - [x] Implement voice message transcription and translation
 - [x] Create translation settings and user preferences
+- [ ] **CRITICAL BUGS**: Voice message translation has multiple critical bugs preventing functionality
 - [x] Add offline translation support with queueing and caching
 - [x] Implement simplified language strategy (user-controlled)
 - [x] Create comprehensive localization system for 12 languages
@@ -514,5 +526,52 @@
 - **Approach**: Build vertically, one feature at a time
 - **Testing**: Test on Expo Go throughout development
 - **Documentation**: Update memory bank as features are completed
+
+---
+
+## 🚨 CRITICAL BUGS - Voice Message Translation
+
+### Phase 16: Voice Translation Bug Fixes (IN PROGRESS) ⚠️
+**Status**: CRITICAL - Multiple bugs preventing voice message translation functionality
+**Impact**: Users cannot translate voice messages, breaking core translation features
+**Priority**: HIGH - Blocks voice message translation functionality
+
+#### Known Bugs:
+- [x] **Module Import Errors**: `expo-file-system` import causing "Requiring unknown module" errors
+- [x] **Base64 Encoding Issues**: `EncodingType.Base64` undefined causing transcription failures
+- [x] **OpenAI Whisper API Errors**: Invalid language parameter 'auto' causing 400 errors
+- [x] **MediaService Method Errors**: `downloadAudioFile` method doesn't exist (should be `downloadVoiceMessage`)
+- [x] **Firestore Document Path Errors**: Incorrect document path causing "No document to update" errors
+- [ ] **Transcription Storage Issues**: Voice transcriptions not being properly stored or retrieved
+- [ ] **Translation Pipeline Failures**: Voice messages not going through proper translation pipeline
+- [ ] **End-to-End Testing**: Whether transcription and translation actually work end-to-end
+
+#### Technical Fixes Applied:
+- [x] **TranscriptionService**: Removed unnecessary file system imports, using FormData directly
+- [x] **VoiceTranslationService**: Fixed method name mismatch with MediaService
+- [x] **Firestore Updates**: Corrected document path to use subcollection structure
+- [x] **API Integration**: Fixed OpenAI Whisper API language parameter issues
+- [x] **Error Handling**: Added comprehensive error handling and validation
+
+#### Files Created/Modified:
+- [x] **New**: `src/services/transcription.ts` - OpenAI Whisper integration
+- [x] **New**: `src/services/voiceTranslation.ts` - Voice translation pipeline
+- [x] **Modified**: `src/services/sqlite.ts` - Added transcription update method
+- [x] **Modified**: `src/components/VoiceMessageBubble.tsx` - Updated to use new service
+- [x] **Modified**: `src/screens/chat/SimpleChatScreen.tsx` - Added voice auto-translation
+
+#### Next Steps:
+- [ ] **Comprehensive Testing**: Test voice message transcription with real audio files
+- [ ] **Translation Pipeline Testing**: Verify voice messages go through translation pipeline
+- [ ] **Cultural Hints Testing**: Ensure cultural hints work with voice transcriptions
+- [ ] **Auto-Translation Testing**: Test automatic translation for voice messages
+- [ ] **Error Handling**: Test error scenarios and edge cases
+- [ ] **Performance Testing**: Test with various audio file sizes and formats
+
+#### Risk Assessment:
+**High Risk**: Voice message translation is a core feature that users expect to work
+**Impact**: Users cannot translate voice messages, reducing app functionality
+**Urgency**: Needs immediate attention and comprehensive testing
+**Dependencies**: OpenAI API, Firebase Storage, local file system access
 - **Quality**: Focus on reliability and offline resilience
 

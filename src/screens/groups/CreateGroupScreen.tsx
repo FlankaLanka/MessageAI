@@ -16,6 +16,7 @@ import { useStore } from '../../store/useStore';
 import { GroupService } from '../../services/groups';
 import { User } from '../../types';
 import UserSearchModal from '../../components/UserSearchModal';
+import { useLocalization } from '../../hooks/useLocalization';
 
 interface CreateGroupScreenProps {
   onNavigateBack: () => void;
@@ -23,6 +24,7 @@ interface CreateGroupScreenProps {
 }
 
 export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: CreateGroupScreenProps) {
+  const { t } = useLocalization();
   const { user } = useStore();
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
@@ -36,12 +38,12 @@ export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: Cr
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) {
-      Alert.alert('Error', 'Please enter a group name');
+      Alert.alert(t('error'), t('pleaseEnterGroupName'));
       return;
     }
 
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to create a group');
+      Alert.alert(t('error'), t('mustBeLoggedInToCreateGroup'));
       return;
     }
 
@@ -65,11 +67,11 @@ export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: Cr
       // Show success message (non-blocking)
       // Use a timeout to ensure the navigation happens first
       setTimeout(() => {
-        Alert.alert('Success', 'Group created successfully!');
+        Alert.alert(t('success'), t('groupCreatedSuccessfully'));
       }, 200);
     } catch (error: any) {
       console.error('Error creating group:', error);
-      Alert.alert('Error', 'Failed to create group. Please try again.');
+      Alert.alert(t('error'), t('failedToCreateGroup'));
     } finally {
       setIsCreating(false);
     }
@@ -108,26 +110,26 @@ export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: Cr
         >
           <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
             <TouchableOpacity onPress={onNavigateBack} style={[styles.backButton, isSmallScreen && styles.backButtonSmall]}>
-              <Text style={[styles.backButtonText, isSmallScreen && styles.backButtonTextSmall]}>← Back</Text>
+              <Text style={[styles.backButtonText, isSmallScreen && styles.backButtonTextSmall]}>← {t('back')}</Text>
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, isSmallScreen && styles.headerTitleSmall]}>Create Group</Text>
+            <Text style={[styles.headerTitle, isSmallScreen && styles.headerTitleSmall]}>{t('createGroup')}</Text>
           </View>
 
           <View style={styles.form}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Group Name *</Text>
+            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('groupName')} *</Text>
             <TextInput
               style={[styles.input, isSmallScreen && styles.inputSmall]}
-              placeholder="Enter group name"
+              placeholder={t('enterGroupName')}
               value={groupName}
               onChangeText={setGroupName}
               editable={!isCreating}
               maxLength={50}
             />
 
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Description</Text>
+            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('description')}</Text>
             <TextInput
               style={[styles.input, styles.textArea, isSmallScreen && styles.inputSmall]}
-              placeholder="Enter group description (optional)"
+              placeholder={t('enterGroupDescriptionOptional')}
               value={description}
               onChangeText={setDescription}
               editable={!isCreating}
@@ -136,7 +138,7 @@ export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: Cr
               maxLength={200}
             />
 
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Add Members</Text>
+            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('addMembers')}</Text>
             
             <TouchableOpacity
               style={[styles.searchButton, isSmallScreen && styles.searchButtonSmall]}
@@ -144,7 +146,7 @@ export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: Cr
               disabled={isCreating}
             >
               <Text style={[styles.searchButtonText, isSmallScreen && styles.searchButtonTextSmall]}>
-                + Search and Add Members
+                + {t('searchAndAddMembers')}
               </Text>
             </TouchableOpacity>
 
@@ -152,7 +154,7 @@ export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: Cr
               <View style={[styles.selectedUsersContainer, isSmallScreen && styles.selectedUsersContainerSmall]}>
                 <View style={styles.selectedUsersHeader}>
                   <Text style={[styles.selectedUsersTitle, isSmallScreen && styles.selectedUsersTitleSmall]}>
-                    Selected Members ({selectedUsers.length})
+                    {t('selectedMembers')} ({selectedUsers.length})
                   </Text>
                   <View style={styles.selectedCountBadge}>
                     <Text style={[styles.selectedCountText, isSmallScreen && styles.selectedCountTextSmall]}>
@@ -194,12 +196,12 @@ export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: Cr
               disabled={!groupName.trim() || isCreating}
             >
               <Text style={[styles.createButtonText, isSmallScreen && styles.createButtonTextSmall]}>
-                {isCreating ? 'Creating...' : 'Create Group'}
+                {isCreating ? t('creating') : t('createGroup')}
               </Text>
             </TouchableOpacity>
 
             <Text style={[styles.noteText, isSmallScreen && styles.noteTextSmall]}>
-              Note: Group members will be notified when the group is created.
+              {t('groupMembersWillBeNotified')}
             </Text>
           </View>
         </ScrollView>
@@ -210,7 +212,7 @@ export default function CreateGroupScreen({ onNavigateBack, onGroupCreated }: Cr
         onClose={() => setShowUserSearch(false)}
         onUserSelect={handleUserSelect}
         selectedUsers={selectedUsers}
-        title="Add Group Members"
+        title={t('addMembers')}
         multiSelect={true}
       />
     </SafeAreaView>

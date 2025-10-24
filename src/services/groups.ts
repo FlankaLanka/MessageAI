@@ -212,33 +212,53 @@ export class GroupService {
         throw new Error('Cannot add members while offline');
       }
 
-      // Get group details to check admin permissions
+      // First try to find the group document
       const groupRef = doc(firestore, 'groups', groupId);
       const groupSnap = await getDoc(groupRef);
       
-      if (!groupSnap.exists()) {
-        throw new Error('Group not found');
+      if (groupSnap.exists()) {
+        // Group document exists, use the original logic
+        const groupData = groupSnap.data();
+        
+        // Check if current user is admin
+        if (!groupData.admins?.includes(currentUserId)) {
+          throw new Error('Only group admins can add members');
+        }
+
+        // Add new members to group
+        await updateDoc(groupRef, {
+          participants: arrayUnion(...newMemberIds),
+          updatedAt: serverTimestamp()
+        });
+
+        // Update corresponding chat
+        const chatRef = doc(firestore, 'chats', groupId);
+        await updateDoc(chatRef, {
+          participants: arrayUnion(...newMemberIds),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Group document doesn't exist, try to work with chat document directly
+        const chatRef = doc(firestore, 'chats', groupId);
+        const chatSnap = await getDoc(chatRef);
+        
+        if (!chatSnap.exists()) {
+          throw new Error('Group not found');
+        }
+
+        const chatData = chatSnap.data();
+        
+        // Check if current user is admin
+        if (!chatData.adminIds?.includes(currentUserId)) {
+          throw new Error('Only group admins can add members');
+        }
+
+        // Add new members to chat
+        await updateDoc(chatRef, {
+          participants: arrayUnion(...newMemberIds),
+          updatedAt: serverTimestamp()
+        });
       }
-
-      const groupData = groupSnap.data();
-      
-      // Check if current user is admin
-      if (!groupData.admins?.includes(currentUserId)) {
-        throw new Error('Only group admins can add members');
-      }
-
-      // Add new members to group
-      await updateDoc(groupRef, {
-        participants: arrayUnion(...newMemberIds),
-        updatedAt: serverTimestamp()
-      });
-
-      // Update corresponding chat
-      const chatRef = doc(firestore, 'chats', groupId);
-      await updateDoc(chatRef, {
-        participants: arrayUnion(...newMemberIds),
-        updatedAt: serverTimestamp()
-      });
 
       console.log('Members added to group:', groupId);
     } catch (error) {

@@ -33,7 +33,7 @@ export default function UserSearchModal({
   onClose,
   onUserSelect,
   selectedUsers,
-  title = 'Search Users',
+  title,
   multiSelect = false,
 }: UserSearchModalProps) {
   const { t } = useLocalization();
@@ -169,12 +169,12 @@ export default function UserSearchModal({
       <SafeAreaView style={styles.container}>
         <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={[styles.closeButtonText, isSmallScreen && styles.closeButtonTextSmall]}>Cancel</Text>
+            <Text style={[styles.closeButtonText, isSmallScreen && styles.closeButtonTextSmall]}>{t('cancel')}</Text>
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, isSmallScreen && styles.headerTitleSmall]}>{title}</Text>
+          <Text style={[styles.headerTitle, isSmallScreen && styles.headerTitleSmall]}>{title || t('searchUsers')}</Text>
           {multiSelect && (
             <TouchableOpacity onPress={onClose} style={styles.doneButton}>
-              <Text style={[styles.doneButtonText, isSmallScreen && styles.doneButtonTextSmall]}>Done</Text>
+              <Text style={[styles.doneButtonText, isSmallScreen && styles.doneButtonTextSmall]}>{t('done')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -182,12 +182,15 @@ export default function UserSearchModal({
         <View style={styles.searchContainer}>
           <TextInput
             style={[styles.searchInput, isSmallScreen && styles.searchInputSmall]}
-            placeholder="Search by name or email..."
+            placeholder={t('searchByEmail')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoFocus
             returnKeyType="search"
             onSubmitEditing={searchUsers}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
         </View>
 

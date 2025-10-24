@@ -1,7 +1,7 @@
 # MessageAI - System Patterns
 
 ## Architecture Overview
-MessageAI follows a client-server architecture with Firebase as the backend and React Native as the client. The system emphasizes offline resilience, real-time synchronization, cross-platform compatibility, **AI-powered translation with cultural context detection**, **comprehensive localization support**, **image upload and message reactions**, and **complete localization coverage**.
+MessageAI follows a client-server architecture with Firebase as the backend and React Native as the client. The system emphasizes offline resilience, real-time synchronization, cross-platform compatibility, **AI-powered translation with cultural context detection**, **comprehensive localization support**, **image upload and message reactions**, **complete localization coverage**, and **voice message inline transcription and translation**.
 
 ## Key Technical Decisions
 
@@ -44,13 +44,16 @@ MessageAI follows a client-server architecture with Firebase as the backend and 
 - **Firebase Storage**: Secure image upload with proper security rules and offline support
 - **Message Reactions**: Long-press to react with emojis, Facebook Messenger-style reaction display
 - **Reaction Management**: Add, remove, and change reactions with real-time updates
+- **Direct Reaction Removal**: Click on reactions to remove them with handleDirectReactionPress function
 - **Offline Support**: Image messages and reactions queue locally and sync when online
 - **Enhanced Message Types**: Extended Message interface with imageUrl and reactions fields
 - **SQLite Schema**: Added reactions column and pending_reactions table for offline support
 - **UI Components**: ReactionPicker and ReactionDisplay with haptic feedback
 - **Translation Integration**: Text portions of image messages are translated and stored in RAG
+- **Code Cleanup**: Removed unused MessageReactionPicker component and messagePositions state
+- **Reaction Button Simplification**: Direct function calls instead of complex event handling
 - **Pattern**: iMessage-style image attachment with Facebook Messenger-style reactions
-- **Benefits**: Rich media messaging, emotional expression, offline resilience, real-time reactions
+- **Benefits**: Rich media messaging, emotional expression, offline resilience, real-time reactions, intuitive reaction management
 
 ### 6. Comprehensive Localization System
 - **Language Support**: Streamlined to English, Spanish, and Chinese Simplified only
@@ -59,8 +62,9 @@ MessageAI follows a client-server architecture with Firebase as the backend and 
 - **Native Names**: Language selection shows native language names
 - **UI Adaptation**: Button sizing and text fitting for different languages
 - **Modal Improvements**: Enhanced spacing and text fitting in language selector
+- **Translation Scrolling**: Added vertical scroll indicator to translation box for better UX
 - **Pattern**: Centralized localization with real-time language switching
-- **Benefits**: Complete internationalization, persistent language choice, native language display
+- **Benefits**: Complete internationalization, persistent language choice, native language display, improved translation UX
 
 ### 7. State Management with Zustand
 - **Rationale**: Lightweight, TypeScript-friendly state management

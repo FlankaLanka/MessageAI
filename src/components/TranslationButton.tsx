@@ -27,7 +27,7 @@ export const TranslationButton: React.FC<TranslationButtonProps> = ({
   const [isTranslating, setIsTranslating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { t } = useLocalization();
-  const { defaultTranslationLanguage } = useStore();
+  const { defaultTranslationLanguage, translationMode } = useStore();
 
   const handleTranslate = async () => {
     if (isTranslating) return;
@@ -44,7 +44,7 @@ export const TranslationButton: React.FC<TranslationButtonProps> = ({
             defaultTranslationLanguage,
             {
               useRAG: true,
-              useCulturalHints: true,
+              useCulturalHints: translationMode === 'advanced',
               useSimpleTranslation: true,
               contextLimit: 10,
               confidenceThreshold: 0.6
@@ -65,8 +65,15 @@ export const TranslationButton: React.FC<TranslationButtonProps> = ({
       }
 
       // Fallback to simple translation
-      const translation = await simpleTranslationService.translateText(originalText, defaultTranslationLanguage);
-      onTranslationComplete(messageId, translation, defaultTranslationLanguage);
+      if (translationMode === 'advanced') {
+        // Use translation with cultural hints for advanced mode
+        const result = await simpleTranslationService.translateWithCulturalHints(originalText, defaultTranslationLanguage);
+        onTranslationComplete(messageId, result.translation, defaultTranslationLanguage, result.culturalHints);
+      } else {
+        // Use fast translation without cultural hints for manual and auto modes
+        const translation = await simpleTranslationService.translateText(originalText, defaultTranslationLanguage);
+        onTranslationComplete(messageId, translation, defaultTranslationLanguage);
+      }
     } catch (err) {
       console.error('Translation error:', err);
       setError(t('translationFailed'));
@@ -77,6 +84,11 @@ export const TranslationButton: React.FC<TranslationButtonProps> = ({
 
   // Don't show translate button for user's own messages
   if (isOwn) {
+    return null;
+  }
+
+  // Don't show translate button in auto modes (translations happen automatically)
+  if (translationMode === 'auto' || translationMode === 'auto-advanced') {
     return null;
   }
 

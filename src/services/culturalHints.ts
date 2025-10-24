@@ -1,5 +1,6 @@
 import { CulturalHint } from '../types';
 import { sqliteService } from './sqlite';
+import { useStore } from '../store/useStore';
 
 export interface CulturalHintCache {
   text: string;
@@ -21,6 +22,14 @@ class CulturalHintsService {
     forceRefresh: boolean = false
   ): Promise<CulturalHint[]> {
     const cacheKey = this.getCacheKey(text, language);
+    
+    // Check global cache first
+    const store = useStore.getState();
+    const globalCached = store.getCachedCulturalHints(cacheKey);
+    if (globalCached && !forceRefresh) {
+      console.log('Using global cached cultural hints for:', text.substring(0, 50));
+      return globalCached;
+    }
     
     // Check memory cache first
     if (!forceRefresh && this.cache.has(cacheKey)) {
@@ -66,6 +75,10 @@ class CulturalHintsService {
     hints: CulturalHint[]
   ): Promise<void> {
     const cacheKey = this.getCacheKey(text, language);
+    
+    // Update global cache
+    const store = useStore.getState();
+    store.cacheCulturalHints(cacheKey, hints);
     
     // Update memory cache
     this.cache.set(cacheKey, {

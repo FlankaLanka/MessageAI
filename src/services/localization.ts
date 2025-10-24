@@ -36,6 +36,33 @@ export interface LocalizationStrings {
   members: string;
   leaveGroup: string;
   deleteGroup: string;
+  adding: string;
+  add: string;
+  failedToAddMembers: string;
+  typeAtLeast3Characters: string;
+  searching: string;
+  noUsersFound: string;
+  back: string;
+  description: string;
+  enterGroupName: string;
+  enterGroupDescriptionOptional: string;
+  searchAndAddMembers: string;
+  selectedMembers: string;
+  creating: string;
+  groupMembersWillBeNotified: string;
+  addGroupMembers: string;
+  pleaseEnterGroupName: string;
+  mustBeLoggedInToCreateGroup: string;
+  groupCreatedSuccessfully: string;
+  failedToCreateGroup: string;
+  success: string;
+  done: string;
+  searchUsers: string;
+  groupMembers: string;
+  admin: string;
+  noMembersFound: string;
+  loadingMembers: string;
+  you: string;
   
   // Profile
   editProfile: string;
@@ -45,10 +72,19 @@ export interface LocalizationStrings {
   settings: string;
   translationSettings: string;
   languageSettings: string;
+  personalInformation: string;
+  dangerZone: string;
+  logOut: string;
+  testPushNotification: string;
+  sendTestNotification: string;
+  english: string;
+  emailCannotBeChanged: string;
+  phoneNumberWillBeVerified: string;
   
   // Translation
   translate: string;
   translating: string;
+  analyzingWithAI: string;
   translationFailed: string;
   clearTranslationCache: string;
   clearCacheConfirm: string;
@@ -64,6 +100,8 @@ export interface LocalizationStrings {
   playVoiceMessage: string;
   pauseVoiceMessage: string;
   viewTranscription: string;
+  hideTranscription: string;
+  transcription: string;
   voiceTranscription: string;
   noTranscriptionAvailable: string;
   
@@ -81,6 +119,7 @@ export interface LocalizationStrings {
   save: string;
   delete: string;
   edit: string;
+  searchByEmail: string;
   close: string;
   yes: string;
   no: string;
@@ -102,11 +141,9 @@ export interface LocalizationStrings {
   uploading: string;
   deletePicture: string;
   deleteAccount: string;
-  emailCannotBeChanged: string;
   enterFirstName: string;
   enterLastName: string;
   enterPhoneNumber: string;
-  phoneNumberWillBeVerified: string;
   welcomeBack: string;
   signInToAccount: string;
   signingIn: string;
@@ -140,6 +177,24 @@ export interface LocalizationStrings {
   topic: string;
   entities: string;
   literal: string;
+  
+  // Translation Modes
+  translationMode: string;
+  manualTranslate: string;
+  autoTranslate: string;
+  advancedTranslate: string;
+  autoAdvancedTranslate: string;
+  manualTranslateDescription: string;
+  autoTranslateDescription: string;
+  advancedTranslateDescription: string;
+  autoAdvancedTranslateDescription: string;
+  selectTranslationMode: string;
+  
+  // Translation Cache
+  translationCache: string;
+  translationCacheDescription: string;
+  // Smart Suggestions
+  backToKeyboard: string;
 }
 
 // English (default)
@@ -178,6 +233,33 @@ const en: LocalizationStrings = {
   members: 'Members',
   leaveGroup: 'Leave Group',
   deleteGroup: 'Delete Group',
+  adding: 'Adding...',
+  add: 'Add',
+  failedToAddMembers: 'Failed to add members to group',
+  typeAtLeast3Characters: 'Type at least 3 characters to search',
+  searching: 'Searching...',
+  noUsersFound: 'No users found',
+  back: 'Back',
+  description: 'Description',
+  enterGroupName: 'Enter group name',
+  enterGroupDescriptionOptional: 'Enter group description (optional)',
+  searchAndAddMembers: 'Search and Add Members',
+  selectedMembers: 'Selected Members',
+  creating: 'Creating...',
+  groupMembersWillBeNotified: 'Note: Group members will be notified when the group is created.',
+  addGroupMembers: 'Add Group Members',
+  pleaseEnterGroupName: 'Please enter a group name',
+  mustBeLoggedInToCreateGroup: 'You must be logged in to create a group',
+  groupCreatedSuccessfully: 'Group created successfully!',
+  failedToCreateGroup: 'Failed to create group. Please try again.',
+  success: 'Success',
+  done: 'Done',
+  searchUsers: 'Search Users',
+  groupMembers: 'Group Members',
+  admin: 'Admin',
+  noMembersFound: 'No members found',
+  loadingMembers: 'Loading members...',
+  you: 'You',
   
   // Profile
   editProfile: 'Edit Profile',
@@ -187,10 +269,23 @@ const en: LocalizationStrings = {
   settings: 'Settings',
   translationSettings: 'Translation Settings',
   languageSettings: 'Language Settings',
+  personalInformation: 'Personal Information',
+  dangerZone: 'Danger Zone',
+  logOut: 'Log Out',
+  testPushNotification: 'Test Push Notification',
+  sendTestNotification: 'Send a test notification',
+  english: 'English',
+  emailCannotBeChanged: 'Email cannot be changed',
+  phoneNumberWillBeVerified: 'Phone number will be verified later',
+  editPicture: 'Edit Picture',
+  uploading: 'Uploading...',
+  saveChanges: 'Save Changes',
+  saving: 'Saving...',
   
   // Translation
   translate: 'Translate',
   translating: 'Translating...',
+  analyzingWithAI: 'Analyzing with AI',
   translationFailed: 'Translation failed',
   clearTranslationCache: 'Clear Translation Cache',
   clearCacheConfirm: 'This will clear all cached translations and cultural hints. You may need to re-translate some messages.',
@@ -206,6 +301,8 @@ const en: LocalizationStrings = {
   playVoiceMessage: 'Play Voice Message',
   pauseVoiceMessage: 'Pause Voice Message',
   viewTranscription: 'View Transcription',
+  hideTranscription: 'Hide Transcription',
+  transcription: 'Transcription',
   voiceTranscription: 'Voice Transcription',
   noTranscriptionAvailable: 'No transcription available',
   
@@ -223,6 +320,7 @@ const en: LocalizationStrings = {
   save: 'Save',
   delete: 'Delete',
   edit: 'Edit',
+  searchByEmail: 'Search by email...',
   close: 'Close',
   yes: 'Yes',
   no: 'No',
@@ -282,6 +380,24 @@ const en: LocalizationStrings = {
   topic: 'Topic',
   entities: 'Entities',
   literal: 'Literal',
+  
+  // Translation Modes
+  translationMode: 'Translation Mode',
+  manualTranslate: 'Manual Translate',
+  autoTranslate: 'Auto Translate',
+  advancedTranslate: 'Advanced Translate',
+  autoAdvancedTranslate: 'Auto-Advanced Translate',
+  manualTranslateDescription: 'Click translate button to translate messages',
+  autoTranslateDescription: 'Automatically translate messages when received',
+  advancedTranslateDescription: 'Show cultural hints and AI analysis with translations',
+  autoAdvancedTranslateDescription: 'Automatically translate with cultural hints and AI analysis',
+  selectTranslationMode: 'Select Translation Mode',
+  
+  // Translation Cache
+  translationCache: 'Translation Cache',
+  translationCacheDescription: 'Store translations to speed up repeated text',
+  // Smart Suggestions
+  backToKeyboard: 'Back to Keyboard',
 };
 
 // Spanish
@@ -320,6 +436,33 @@ const es: LocalizationStrings = {
   members: 'Miembros',
   leaveGroup: 'Abandonar Grupo',
   deleteGroup: 'Eliminar Grupo',
+  adding: 'Agregando...',
+  add: 'Agregar',
+  failedToAddMembers: 'Error al agregar miembros al grupo',
+  typeAtLeast3Characters: 'Escribe al menos 3 caracteres para buscar',
+  searching: 'Buscando...',
+  noUsersFound: 'No se encontraron usuarios',
+  back: 'Atrás',
+  description: 'Descripción',
+  enterGroupName: 'Ingresa el nombre del grupo',
+  enterGroupDescriptionOptional: 'Ingresa la descripción del grupo (opcional)',
+  searchAndAddMembers: 'Buscar y Agregar Miembros',
+  selectedMembers: 'Miembros Seleccionados',
+  creating: 'Creando...',
+  groupMembersWillBeNotified: 'Nota: Los miembros del grupo serán notificados cuando se cree el grupo.',
+  addGroupMembers: 'Agregar Miembros del Grupo',
+  pleaseEnterGroupName: 'Por favor ingresa un nombre para el grupo',
+  mustBeLoggedInToCreateGroup: 'Debes estar conectado para crear un grupo',
+  groupCreatedSuccessfully: '¡Grupo creado exitosamente!',
+  failedToCreateGroup: 'Error al crear el grupo. Por favor intenta de nuevo.',
+  success: 'Éxito',
+  done: 'Listo',
+  searchUsers: 'Buscar Usuarios',
+  groupMembers: 'Miembros del Grupo',
+  admin: 'Administrador',
+  noMembersFound: 'No se encontraron miembros',
+  loadingMembers: 'Cargando miembros...',
+  you: 'Tú',
   
   // Profile
   editProfile: 'Editar Perfil',
@@ -329,10 +472,23 @@ const es: LocalizationStrings = {
   settings: 'Configuración',
   translationSettings: 'Configuración de Traducción',
   languageSettings: 'Configuración de Idioma',
+  personalInformation: 'Información Personal',
+  dangerZone: 'Zona de Peligro',
+  logOut: 'Cerrar Sesión',
+  testPushNotification: 'Probar Notificación Push',
+  sendTestNotification: 'Enviar una notificación de prueba',
+  english: 'Inglés',
+  emailCannotBeChanged: 'El correo electrónico no se puede cambiar',
+  phoneNumberWillBeVerified: 'El número de teléfono será verificado más tarde',
+  editPicture: 'Editar Foto',
+  uploading: 'Subiendo...',
+  saveChanges: 'Guardar Cambios',
+  saving: 'Guardando...',
   
   // Translation
   translate: 'Traducir',
   translating: 'Traduciendo...',
+  analyzingWithAI: 'Analizando con IA',
   translationFailed: 'Error en la traducción',
   clearTranslationCache: 'Limpiar Caché de Traducción',
   clearCacheConfirm: 'Esto eliminará todas las traducciones y pistas culturales en caché. Es posible que necesites volver a traducir algunos mensajes.',
@@ -348,6 +504,8 @@ const es: LocalizationStrings = {
   playVoiceMessage: 'Reproducir Mensaje de Voz',
   pauseVoiceMessage: 'Pausar Mensaje de Voz',
   viewTranscription: 'Ver Transcripción',
+  hideTranscription: 'Ocultar Transcripción',
+  transcription: 'Transcripción',
   voiceTranscription: 'Transcripción de Voz',
   noTranscriptionAvailable: 'No hay transcripción disponible',
   
@@ -365,6 +523,7 @@ const es: LocalizationStrings = {
   save: 'Guardar',
   delete: 'Eliminar',
   edit: 'Editar',
+  searchByEmail: 'Buscar por email...',
   close: 'Cerrar',
   yes: 'Sí',
   no: 'No',
@@ -424,6 +583,24 @@ const es: LocalizationStrings = {
   topic: 'Tema',
   entities: 'Entidades',
   literal: 'Literal',
+  
+  // Translation Modes
+  translationMode: 'Modo de Traducción',
+  manualTranslate: 'Traducir Manualmente',
+  autoTranslate: 'Traducir Automáticamente',
+  advancedTranslate: 'Traducción Avanzada',
+  autoAdvancedTranslate: 'Traducción Auto-Avanzada',
+  manualTranslateDescription: 'Haz clic en el botón traducir para traducir mensajes',
+  autoTranslateDescription: 'Traducir automáticamente los mensajes cuando se reciban',
+  advancedTranslateDescription: 'Mostrar pistas culturales y análisis de IA con traducciones',
+  autoAdvancedTranslateDescription: 'Traducir automáticamente con pistas culturales y análisis de IA',
+  selectTranslationMode: 'Seleccionar Modo de Traducción',
+  
+  // Translation Cache
+  translationCache: 'Caché de Traducción',
+  translationCacheDescription: 'Almacenar traducciones para acelerar texto repetido',
+  // Smart Suggestions
+  backToKeyboard: 'Volver al Teclado',
 };
 
 // Chinese (Simplified)
@@ -462,6 +639,33 @@ const zh: LocalizationStrings = {
   members: '成员',
   leaveGroup: '退出群组',
   deleteGroup: '删除群组',
+  adding: '添加中...',
+  add: '添加',
+  failedToAddMembers: '添加成员到群组失败',
+  typeAtLeast3Characters: '至少输入3个字符进行搜索',
+  searching: '搜索中...',
+  noUsersFound: '未找到用户',
+  back: '返回',
+  description: '描述',
+  enterGroupName: '输入群组名称',
+  enterGroupDescriptionOptional: '输入群组描述（可选）',
+  searchAndAddMembers: '搜索并添加成员',
+  selectedMembers: '已选成员',
+  creating: '创建中...',
+  groupMembersWillBeNotified: '注意：群组创建时成员将收到通知。',
+  addGroupMembers: '添加群组成员',
+  pleaseEnterGroupName: '请输入群组名称',
+  mustBeLoggedInToCreateGroup: '您必须登录才能创建群组',
+  groupCreatedSuccessfully: '群组创建成功！',
+  failedToCreateGroup: '创建群组失败，请重试。',
+  success: '成功',
+  done: '完成',
+  searchUsers: '搜索用户',
+  groupMembers: '群组成员',
+  admin: '管理员',
+  noMembersFound: '未找到成员',
+  loadingMembers: '正在加载成员...',
+  you: '你',
   
   // Profile
   editProfile: '编辑个人资料',
@@ -471,10 +675,23 @@ const zh: LocalizationStrings = {
   settings: '设置',
   translationSettings: '翻译设置',
   languageSettings: '语言设置',
+  personalInformation: '个人信息',
+  dangerZone: '危险区域',
+  logOut: '退出登录',
+  testPushNotification: '测试推送通知',
+  sendTestNotification: '发送测试通知',
+  english: '英语',
+  emailCannotBeChanged: '邮箱无法更改',
+  phoneNumberWillBeVerified: '电话号码将在稍后验证',
+  editPicture: '编辑照片',
+  uploading: '上传中...',
+  saveChanges: '保存更改',
+  saving: '保存中...',
   
   // Translation
   translate: '翻译',
   translating: '翻译中...',
+  analyzingWithAI: 'AI分析中',
   translationFailed: '翻译失败',
   clearTranslationCache: '清除翻译缓存',
   clearCacheConfirm: '这将清除所有缓存的翻译和文化提示。您可能需要重新翻译一些消息。',
@@ -490,6 +707,8 @@ const zh: LocalizationStrings = {
   playVoiceMessage: '播放语音消息',
   pauseVoiceMessage: '暂停语音消息',
   viewTranscription: '查看转录',
+  hideTranscription: '隐藏转录',
+  transcription: '转录',
   voiceTranscription: '语音转录',
   noTranscriptionAvailable: '无转录可用',
   
@@ -507,6 +726,7 @@ const zh: LocalizationStrings = {
   save: '保存',
   delete: '删除',
   edit: '编辑',
+  searchByEmail: '按邮箱搜索...',
   close: '关闭',
   yes: '是',
   no: '否',
@@ -566,6 +786,24 @@ const zh: LocalizationStrings = {
   topic: '主题',
   entities: '实体',
   literal: '字面意思',
+  
+  // Translation Modes
+  translationMode: '翻译模式',
+  manualTranslate: '手动翻译',
+  autoTranslate: '自动翻译',
+  advancedTranslate: '高级翻译',
+  autoAdvancedTranslate: '自动高级翻译',
+  manualTranslateDescription: '点击翻译按钮来翻译消息',
+  autoTranslateDescription: '收到消息时自动翻译',
+  advancedTranslateDescription: '显示文化提示和AI分析与翻译',
+  autoAdvancedTranslateDescription: '自动翻译并显示文化提示和AI分析',
+  selectTranslationMode: '选择翻译模式',
+  
+  // Translation Cache
+  translationCache: '翻译缓存',
+  translationCacheDescription: '存储翻译以加速重复文本',
+  // Smart Suggestions
+  backToKeyboard: '返回键盘',
 };
 
 // Available languages

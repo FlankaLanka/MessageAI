@@ -12,12 +12,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../../store/useStore';
 import { UserService } from '../../services/users';
 import { MediaService } from '../../services/media';
 import { AuthService } from '../../services/auth';
 import { useLocalization } from '../../hooks/useLocalization';
 import LanguageSelector from '../../components/LanguageSelector';
+import { notificationService } from '../../services/notifications';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isSmallScreen = screenHeight < 700;
@@ -232,6 +234,50 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleTestNotification = async () => {
+    try {
+      await notificationService.sendLocalMessageNotification(
+        'Test User',
+        'This is a test notification from MessageAI!',
+        'text'
+      );
+      Alert.alert(
+        '📱 Test Notification Sent',
+        'Check your notification panel to see the test notification.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      Alert.alert(
+        '❌ Test Failed',
+        'Could not send test notification. This is expected in Expo Go.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert(
+      t('logOut'),
+      'Are you sure you want to sign out?',
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('logOut'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AuthService.signOut();
+            } catch (error) {
+              console.error('Error signing out:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const startSecureDeletionProcess = () => {
     const canUsePassword = AuthService.canReauthenticateWithPassword();
     const providers = AuthService.getUserProviders();
@@ -405,15 +451,10 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, isSmallScreen && styles.scrollContentSmall]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>{t('profile')}</Text>
-        </View>
-
-        {/* Profile Picture */}
+        {/* Profile Picture Section */}
         <View style={styles.profilePictureSection}>
           <TouchableOpacity
             style={styles.profilePictureContainer}
@@ -429,6 +470,9 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             )}
+            <View style={styles.editIconContainer}>
+              <Ionicons name="camera" size={16} color="#FFFFFF" />
+            </View>
             {isUploadingImage && (
               <View style={styles.uploadingOverlay}>
                 <ActivityIndicator color="#fff" size="small" />
@@ -436,50 +480,38 @@ export default function ProfileScreen() {
             )}
           </TouchableOpacity>
           
-          <View style={styles.pictureButtonsContainer}>
-            <TouchableOpacity
-              style={styles.editPictureButton}
-              onPress={handleImagePicker}
-              disabled={isUploadingImage}
-            >
-              <Text style={styles.editPictureButtonText}>
-                {isUploadingImage ? t('uploading') : t('editPicture')}
-              </Text>
-            </TouchableOpacity>
-            
-            {profilePicture && (
-              <TouchableOpacity
-                style={styles.deletePictureButton}
-                onPress={handleDeleteProfilePicture}
-                disabled={isUploadingImage}
-              >
-                <Text style={styles.deletePictureButtonText}>
-                  {t('deletePicture')}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <TouchableOpacity
+            style={styles.editPictureButton}
+            onPress={handleImagePicker}
+            disabled={isUploadingImage}
+          >
+            <Text style={styles.editPictureText}>
+              {isUploadingImage ? t('uploading') : t('editPicture')}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Form Fields */}
-        <View style={styles.form}>
+        {/* Personal Information Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('personalInformation')}</Text>
+          
           {/* Email (Read-only) */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('email')}</Text>
+            <Text style={styles.label}>{t('email')}</Text>
             <TextInput
               style={[styles.input, styles.readOnlyInput]}
               value={user?.email || ''}
               editable={false}
               placeholder={t('email')}
             />
-            <Text style={styles.readOnlyNote}>{t('emailCannotBeChanged')}</Text>
+            <Text style={styles.helperText}>{t('emailCannotBeChanged')}</Text>
           </View>
 
           {/* First Name */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('firstName')}</Text>
+            <Text style={styles.label}>{t('firstName')}</Text>
             <TextInput
-              style={[styles.input, isSmallScreen && styles.inputSmall]}
+              style={styles.input}
               value={firstName}
               onChangeText={setFirstName}
               placeholder={t('enterFirstName')}
@@ -489,9 +521,9 @@ export default function ProfileScreen() {
 
           {/* Last Name */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('lastName')}</Text>
+            <Text style={styles.label}>{t('lastName')}</Text>
             <TextInput
-              style={[styles.input, isSmallScreen && styles.inputSmall]}
+              style={styles.input}
               value={lastName}
               onChangeText={setLastName}
               placeholder={t('enterLastName')}
@@ -501,48 +533,88 @@ export default function ProfileScreen() {
 
           {/* Phone Number */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>{t('phoneNumber')}</Text>
+            <Text style={styles.label}>{t('phoneNumber')}</Text>
             <TextInput
-              style={[styles.input, isSmallScreen && styles.inputSmall]}
+              style={styles.input}
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               placeholder={t('enterPhoneNumber')}
               keyboardType="phone-pad"
               editable={!isSaving}
             />
-            <Text style={styles.phoneNote}>{t('phoneNumberWillBeVerified')}</Text>
+            <Text style={styles.helperText}>{t('phoneNumberWillBeVerified')}</Text>
           </View>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            <Text style={styles.saveButtonText}>
-              {isSaving ? t('saving') : t('saveChanges')}
-            </Text>
-          </TouchableOpacity>
+        {/* Save Changes Button */}
+        <TouchableOpacity
+          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={isSaving}
+        >
+          <Text style={styles.saveButtonText}>
+            {isSaving ? t('saving') : t('saveChanges')}
+          </Text>
+        </TouchableOpacity>
 
+        {/* Settings Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings')}</Text>
+          
           <TouchableOpacity
-            style={styles.settingsButton}
+            style={styles.settingRow}
             onPress={() => setShowLanguageSelector(true)}
             disabled={isSaving}
           >
-            <Text style={styles.settingsButtonText}>
-              🌍 {t('settings')} & {t('translationSettings')}
-            </Text>
+            <View style={styles.settingIconContainer}>
+              <Ionicons name="globe-outline" size={20} color="#8E8E93" />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingTitle}>{t('languageSettings')}</Text>
+              <Text style={styles.settingSubtitle}>{t('english')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={handleTestNotification}
+            disabled={isSaving}
+          >
+            <View style={[styles.settingIconContainer, styles.notificationIconContainer]}>
+              <Ionicons name="notifications" size={20} color="#34C759" />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingTitle}>{t('testPushNotification')}</Text>
+              <Text style={styles.settingSubtitle}>{t('sendTestNotification')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
+          </TouchableOpacity>
+        </View>
 
+        {/* Danger Zone Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('dangerZone')}</Text>
+          
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleSignOut}
+            disabled={isSaving}
+          >
+            <View style={styles.buttonIconContainer}>
+              <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={styles.logoutButtonText}>{t('logOut')}</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={handleDeleteAccount}
             disabled={isSaving}
           >
+            <View style={styles.buttonIconContainer}>
+              <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+            </View>
             <Text style={styles.deleteButtonText}>{t('deleteAccount')}</Text>
           </TouchableOpacity>
         </View>
@@ -553,7 +625,6 @@ export default function ProfileScreen() {
         visible={showLanguageSelector}
         onClose={() => setShowLanguageSelector(false)}
       />
-
     </SafeAreaView>
   );
 }
@@ -561,64 +632,75 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#8E8E93',
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingVertical: 20,
   },
-  scrollContentSmall: {
-    paddingVertical: 16,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  titleSmall: {
-    fontSize: 24,
-  },
   profilePictureSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
   },
   profilePictureContainer: {
-    position: 'relative',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   profilePicture: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   placeholderAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   placeholderText: {
-    fontSize: 48,
-    color: '#fff',
+    fontSize: 40,
     fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  editIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
   },
   uploadingOverlay: {
     position: 'absolute',
@@ -627,36 +709,17 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 60,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pictureButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
   editPictureButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
+    marginTop: 8,
   },
-  editPictureButtonText: {
-    fontSize: 14,
+  editPictureText: {
+    fontSize: 16,
     color: '#007AFF',
-    fontWeight: '600',
-  },
-  deletePictureButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: '#ff4444',
-    borderRadius: 20,
-  },
-  deletePictureButtonText: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   form: {
     marginBottom: 32,
@@ -702,20 +765,28 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  actions: {
-    gap: 16,
-  },
   saveButton: {
     backgroundColor: '#007AFF',
     paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
+    marginBottom: 32,
+    shadowColor: '#007AFF',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   saveButtonDisabled: {
-    backgroundColor: '#a0c8ff',
+    backgroundColor: '#A0C8FF',
+    shadowOpacity: 0.1,
   },
   saveButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -745,15 +816,151 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  deleteButton: {
-    backgroundColor: '#ff3b30',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+  // New modern styles
+  section: {
+    marginBottom: 32,
   },
-  deleteButtonText: {
-    color: '#fff',
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 16,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E5E5EA',
+  },
+  settingIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  notificationIconContainer: {
+    backgroundColor: '#E8F5E8',
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1C1C1E',
+    marginBottom: 2,
+  },
+  settingSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  dangerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#F2F2F7',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E5E5EA',
+  },
+  deleteRow: {
+    backgroundColor: '#FFF5F5',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF3B30',
+  },
+  dangerIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  deleteIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFE5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  dangerTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1C1C1E',
+  },
+  deleteTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FF3B30',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginTop: 4,
+  },
+  // New button styles
+  logoutButton: {
+    backgroundColor: '#8E8E93',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#8E8E93',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoutButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF3B30',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  deleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  buttonIconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

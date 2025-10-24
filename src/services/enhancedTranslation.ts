@@ -2,6 +2,7 @@ import { Translation, CulturalHint, Message } from '../types';
 import { ragTranslationService, RAGContext, UserPreferences, RAGTranslationResult } from './ragTranslation';
 import { simpleTranslationService } from './simpleTranslation';
 import { culturalHintsService } from './culturalHints';
+import { useStore } from '../store/useStore';
 
 /**
  * Enhanced Translation Service
@@ -51,6 +52,24 @@ class EnhancedTranslationService {
   ): Promise<EnhancedTranslationResult> {
     const opts = { ...this.defaultOptions, ...options };
     
+    // Check cache first
+    const store = useStore.getState();
+    const textHash = this.createTextHash(message.text || '');
+    const cachedTranslation = store.getCachedTranslation(textHash, targetLanguage);
+    const cachedHints = store.getCachedCulturalHints(textHash);
+    const cachedProcessing = store.getCachedIntelligentProcessing(textHash);
+    
+    if (cachedTranslation && cachedHints && cachedProcessing) {
+      console.log('Using cached enhanced translation for:', message.text?.substring(0, 50));
+      return {
+        translation: cachedTranslation.text,
+        culturalHints: cachedHints,
+        intelligentProcessing: cachedProcessing,
+        method: 'rag',
+        contextUsed: []
+      };
+    }
+    
     try {
       // Step 1: Prepare RAG context from conversation history
       const ragContext = await this.prepareRAGContext(message, opts.contextLimit || 10);
@@ -75,13 +94,24 @@ class EnhancedTranslationService {
           // Check confidence threshold
           if (ragResult.intelligent_processing.confidence && 
               ragResult.intelligent_processing.confidence >= (opts.confidenceThreshold || 0.7)) {
-            return {
+            
+            const result = {
               translation: ragResult.translation,
               culturalHints: ragResult.cultural_hints || [],
               intelligentProcessing: ragResult.intelligent_processing,
-              method: 'rag',
+              method: 'rag' as const,
               contextUsed: ragResult.context_used
             };
+            
+            // Cache the result
+            store.cacheTranslation(textHash, targetLanguage, {
+              text: ragResult.translation,
+              lang: targetLanguage
+            });
+            store.cacheCulturalHints(textHash, ragResult.cultural_hints || []);
+            store.cacheIntelligentProcessing(textHash, ragResult.intelligent_processing);
+            
+            return result;
           }
         } catch (error) {
           console.warn('RAG translation failed, falling back:', error);
@@ -97,10 +127,19 @@ class EnhancedTranslationService {
             opts.useCulturalHints || false
           );
           
-          return {
+          const result = {
             ...simpleResult,
-            method: 'simple'
+            method: 'simple' as const
           };
+          
+          // Cache the result
+          store.cacheTranslation(textHash, targetLanguage, {
+            text: simpleResult.translation,
+            lang: targetLanguage
+          });
+          store.cacheCulturalHints(textHash, simpleResult.culturalHints);
+          
+          return result;
         } catch (error) {
           console.warn('Simple translation failed:', error);
         }
@@ -282,6 +321,20 @@ class EnhancedTranslationService {
    */
   getOptions(): EnhancedTranslationOptions {
     return { ...this.defaultOptions };
+  }
+
+  /**
+   * Create a hash for text to use as cache key
+   */
+  private createTextHash(text: string): string {
+    // Simple hash function for text
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
   }
 }
 

@@ -325,6 +325,21 @@ class SQLiteService {
     }
   }
 
+  async updateMessageTranscription(messageId: string, transcription: string, originalLanguage?: string) {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      await this.db.runAsync(
+        `UPDATE messages SET transcription = ?, transcriptionLang = ?, updatedAt = ? WHERE id = ?`,
+        [transcription, originalLanguage || null, Date.now(), messageId]
+      );
+      console.log('Message transcription updated in SQLite:', messageId);
+    } catch (error) {
+      console.error('Error updating message transcription in SQLite:', error);
+      throw error;
+    }
+  }
+
   async getQueuedMessages(): Promise<Message[]> {
     if (!this.db) throw new Error('Database not initialized');
 

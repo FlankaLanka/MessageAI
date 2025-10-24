@@ -1,5 +1,6 @@
 import { CulturalHint } from '../types';
 import { supabaseVectorService } from './supabaseVector';
+import { useStore } from '../store/useStore';
 
 /**
  * RAG-based Intelligent Translation Service
@@ -63,6 +64,23 @@ class RAGTranslationService {
       throw new Error('OpenAI API key not configured');
     }
 
+    // Check cache first
+    const store = useStore.getState();
+    const textHash = this.createTextHash(userMessage);
+    const cachedTranslation = store.getCachedTranslation(textHash, userPreferences.target_language);
+    const cachedHints = store.getCachedCulturalHints(textHash);
+    const cachedProcessing = store.getCachedIntelligentProcessing(textHash);
+    
+    if (cachedTranslation && cachedHints && cachedProcessing) {
+      console.log('Using cached RAG translation for:', userMessage.substring(0, 50));
+      return {
+        translation: cachedTranslation.text,
+        cultural_hints: cachedHints,
+        intelligent_processing: cachedProcessing,
+        context_used: []
+      };
+    }
+
     try {
       // Step 1: Analyze context relevance and extract meaningful snippets
       const relevantContext = await this.extractRelevantContext(userMessage, ragContext);
@@ -85,12 +103,22 @@ class RAGTranslationService {
         );
       }
 
-      return {
+      const result = {
         translation: translationResult.translation,
         intelligent_processing: translationResult.intelligent_processing,
         cultural_hints: culturalHints,
         context_used: relevantContext
       };
+      
+      // Cache the result
+      store.cacheTranslation(textHash, userPreferences.target_language, {
+        text: translationResult.translation,
+        lang: userPreferences.target_language
+      });
+      store.cacheCulturalHints(textHash, culturalHints);
+      store.cacheIntelligentProcessing(textHash, translationResult.intelligent_processing);
+      
+      return result;
     } catch (error) {
       console.error('RAG Translation error:', error);
       // Fallback to simple translation
@@ -722,6 +750,20 @@ IMPORTANT: Write all explanations in the user's interface language: ${this.getUs
       console.warn('Could not get user interface language, defaulting to English:', error);
       return 'English';
     }
+  }
+
+  /**
+   * Create a hash for text to use as cache key
+   */
+  private createTextHash(text: string): string {
+    // Simple hash function for text
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
   }
 }
 

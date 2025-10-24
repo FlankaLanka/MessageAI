@@ -15,11 +15,13 @@ Create a production-quality messaging app that demonstrates modern mobile develo
 - **Push notifications**: Foreground notification support
 - **Presence indicators**: Online/offline status and typing indicators
 - **Enhanced AI Translation**: Advanced translation with sophisticated cultural context detection
-- **Voice Translation**: Voice message transcription and translation
+- **Voice Translation**: Voice message transcription and translation with inline UI
 - **Advanced Cultural Understanding**: Multi-layer detection of slangs, idioms, and cultural references with AI and pattern matching
 - **Localization**: Multi-language support for 12 languages with native names
 - **Real-time Language Switching**: UI updates immediately when language changes
 - **Persistent Language Settings**: Language choice saved to user profile
+- **Voice Message Inline Transcription**: Voice transcriptions display automatically inside the voice bubble
+- **Voice Message Inline Translation**: Voice translations use the same UI and functionality as regular text messages
 
 ## Success Criteria
 ✅ Reliable real-time chat on 2+ devices  
@@ -40,6 +42,9 @@ Create a production-quality messaging app that demonstrates modern mobile develo
 ✅ Combined settings interface working
 ✅ Translation language sync with user preferences
 ✅ Unified LanguageSelector with comprehensive settings
+✅ Voice message inline transcription and translation
+✅ Enhanced voice translation with cultural hints and intelligent processing
+✅ Voice translation RAG context integration
 
 ## Technology Stack
 - **Frontend**: React Native + Expo

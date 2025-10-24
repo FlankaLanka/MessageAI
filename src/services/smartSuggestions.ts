@@ -34,6 +34,10 @@ class SmartSuggestionsService {
   private baseUrl: string;
   private cache: Map<string, SmartSuggestion[]> = new Map();
   private readonly CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+  
+  // Debouncing properties
+  private debounceTimers = new Map<string, NodeJS.Timeout>();
+  private readonly DEBOUNCE_DELAY = 1000; // 1 second debounce
 
   constructor() {
     this.apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY || '';
@@ -41,37 +45,52 @@ class SmartSuggestionsService {
   }
 
   /**
-   * Generate smart message suggestions using LLM with function calling
+   * Generate smart message suggestions using optimized single API call with debouncing
    */
-  async generateSuggestions(context: SuggestionContext): Promise<SmartSuggestion[]> {
+  async generateSuggestions(context: SuggestionContext, useRAG: boolean = false, includeOtherLanguage: boolean = false): Promise<SmartSuggestion[]> {
     if (!this.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    try {
-      // Check cache first
-      const cacheKey = this.getCacheKey(context);
-      if (this.cache.has(cacheKey)) {
-        const cached = this.cache.get(cacheKey)!;
-        if (Date.now() - cached[0]?.timestamp < this.CACHE_EXPIRY) {
-          return cached;
-        }
+    const cacheKey = this.getCacheKey(context);
+    
+    // Check cache first
+    if (this.cache.has(cacheKey)) {
+      const cached = this.cache.get(cacheKey)!;
+      if (Date.now() - cached[0]?.timestamp < this.CACHE_EXPIRY) {
+        return cached;
       }
-
-      // Get RAG context from conversation history
-      const ragContext = await this.getRAGContext(context);
-      
-      // Generate suggestions using function calling
-      const suggestions = await this.generateSuggestionsWithFunctions(context, ragContext);
-      
-      // Cache the results
-      this.cache.set(cacheKey, suggestions);
-      
-      return suggestions;
-    } catch (error) {
-      console.error('Smart suggestions error:', error);
-      return this.getFallbackSuggestions(context);
     }
+
+    // Clear existing debounce timer for this context
+    if (this.debounceTimers.has(cacheKey)) {
+      clearTimeout(this.debounceTimers.get(cacheKey)!);
+    }
+
+    // Return a promise that will be resolved after debounce delay
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(async () => {
+        try {
+          // Get context from conversation history (RAG or recent messages based on settings)
+          const ragContext = await this.getRAGContext(context, useRAG);
+          
+          // Generate suggestions using optimized single API call
+          const suggestions = await this.generateOptimizedSuggestions(context, ragContext, includeOtherLanguage);
+          
+          // Cache the results
+          this.cache.set(cacheKey, suggestions);
+          
+          resolve(suggestions);
+        } catch (error) {
+          console.error('Smart suggestions error:', error);
+          resolve(this.getFallbackSuggestions(context));
+        } finally {
+          this.debounceTimers.delete(cacheKey);
+        }
+      }, this.DEBOUNCE_DELAY);
+      
+      this.debounceTimers.set(cacheKey, timer);
+    });
   }
 
   /**
@@ -142,9 +161,16 @@ Provide a concise analysis focusing on:
   }
 
   /**
-   * Get RAG context from conversation history
+   * Get context from conversation history (RAG or recent messages based on settings)
    */
-  private async getRAGContext(context: SuggestionContext): Promise<string[]> {
+  private async getRAGContext(context: SuggestionContext, useRAG: boolean): Promise<string[]> {
+    if (!useRAG) {
+      // Use only recent messages for faster performance
+      return context.recentMessages
+        .slice(-5)
+        .map(msg => `${msg.senderName}: ${msg.text}`);
+    }
+
     try {
       // Get recent conversation context from Supabase Vector
       const contextMessages = await supabaseVectorService.retrieveConversationContext(
@@ -166,29 +192,17 @@ Provide a concise analysis focusing on:
   }
 
   /**
-   * Generate suggestions using OpenAI function calling
+   * Generate suggestions using optimized single API call
    */
-  private async generateSuggestionsWithFunctions(
+  private async generateOptimizedSuggestions(
     context: SuggestionContext,
-    ragContext: string[]
+    ragContext: string[],
+    includeOtherLanguage: boolean = false
   ): Promise<SmartSuggestion[]> {
-    // Analyze conversation context first with speaker information
-    const conversationAnalysis = await this.analyzeConversationContext(
-      ragContext, 
-      context.currentUserId, 
-      context.currentUserName
-    );
-    
-    // Check if this is a direct chat with different languages
-    const shouldGenerateMultiLanguage = context.isDirectChat && 
-      context.otherUserLanguage && 
-      context.otherUserLanguage !== this.getLanguageCodeFromName(context.userPreferences.language);
-    
     console.log('Smart Suggestions Debug:', {
       isDirectChat: context.isDirectChat,
       otherUserLanguage: context.otherUserLanguage,
       userLanguage: context.userPreferences.language,
-      shouldGenerateMultiLanguage,
       userLanguageCode: this.getLanguageCodeFromName(context.userPreferences.language)
     });
     
@@ -203,33 +217,27 @@ Provide a concise analysis focusing on:
         messages: [
           {
             role: 'system',
-            content: `You are a smart messaging assistant that provides the TOP 3 most likely responses a user might send.
+            content: `You are a smart messaging assistant. Analyze this conversation and generate 3 contextually relevant message suggestions.
 
-CRITICAL LANGUAGE REQUIREMENT: 
-- The user's language is: ${context.userPreferences.language}
-- You MUST generate ALL suggestions in ${context.userPreferences.language} language
-- Do NOT use English unless the user's language is English
-- If the user's language is Chinese, write in Chinese
-- If the user's language is Spanish, write in Spanish
-- If the user's language is English, write in English
+CRITICAL REQUIREMENTS:
+- User language: ${context.userPreferences.language}
+- Generate ALL suggestions in ${context.userPreferences.language} language
+- Consider WHO is speaking and their role in the conversation
+- Avoid redundant topics already discussed
+- Focus on natural conversation flow
+- Provide suggestions that make sense for ${context.currentUserName} to say
 
-Generate the 3 most probable responses the current speaker would naturally send next, based on conversation context.
-
-Your analysis should consider:
-- WHO is currently speaking and their role/relationship in the conversation
-- What has already been discussed in the conversation
-- What the conversation flow and context is
-- What would be the most natural next responses FROM THE CURRENT SPEAKER'S PERSPECTIVE
-
-AVOID suggesting questions or topics that have already been covered in the conversation.
-AVOID suggesting responses that don't make sense from the current speaker's perspective.
-
-Provide the TOP 3 suggestions that are:
-- The most likely responses the speaker would send
-- Contextually relevant to the current conversation flow
-- Natural continuations of what's being discussed
-- Appropriate for the current speaker's role and perspective in the conversation
-- Written EXCLUSIVELY in ${context.userPreferences.language} language`
+IMPORTANT: Return ONLY a valid JSON object, no markdown formatting, no code blocks, no extra text. Use this exact format:
+{
+  "suggestions": [
+    {
+      "text": "suggestion text here",
+      "type": "response",
+      "confidence": 0.9,
+      "reasoning": "why this makes sense"
+    }
+  ]
+}`
           },
           {
             role: 'user',
@@ -241,72 +249,20 @@ Chat ID: ${context.chatId}
 Language: ${context.userPreferences.language}
 Tone: ${context.userPreferences.tone}
 Style: ${context.userPreferences.style}
-${shouldGenerateMultiLanguage ? `Other user's language: ${context.otherUserLanguage}` : ''}
-
-CONVERSATION ANALYSIS:
-${conversationAnalysis}
 
 RECENT CONVERSATION CONTEXT:
 ${ragContext.map((msg, i) => `${i + 1}. ${msg}`).join('\n')}
 
 IMPORTANT: 
-- Base your suggestions on what has actually been discussed
-- Don't suggest questions about topics that have already been covered
-- Consider ${context.currentUserName}'s perspective and role in the conversation
-- Provide suggestions that make sense for ${context.currentUserName} to say
-- CRITICAL: Generate ALL suggestions in ${context.userPreferences.language} language, NOT in English
-- If user language is Chinese, write suggestions in Chinese characters
-- If user language is Spanish, write suggestions in Spanish
-- If user language is English, write suggestions in English`
+- Base suggestions on what has actually been discussed
+- Don't suggest questions about topics already covered
+- Consider ${context.currentUserName}'s perspective and role
+- Generate ALL suggestions in ${context.userPreferences.language} language
+- Return valid JSON format only`
           }
         ],
-        functions: [
-          {
-            name: 'generate_message_suggestions',
-            description: 'Generate smart message suggestions based on conversation context. CRITICAL: Only suggest responses that are contextually relevant, don\'t repeat already discussed topics, and are appropriate for the current speaker\'s perspective and role.',
-            parameters: {
-              type: 'object',
-              properties: {
-                suggestions: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      text: {
-                        type: 'string',
-                        description: 'The suggested message text that is contextually relevant to the current conversation'
-                      },
-                      type: {
-                        type: 'string',
-                        enum: ['completion', 'response', 'question', 'reaction'],
-                        description: 'Type of suggestion'
-                      },
-                      confidence: {
-                        type: 'number',
-                        minimum: 0,
-                        maximum: 1,
-                        description: 'Confidence score for this suggestion based on conversation relevance'
-                      },
-                      context: {
-                        type: 'string',
-                        description: 'Brief explanation of why this suggestion is relevant to the current conversation context'
-                      },
-                      reasoning: {
-                        type: 'string',
-                        description: 'Why this suggestion makes sense given what has been discussed'
-                      }
-                    },
-                    required: ['text', 'type', 'confidence', 'reasoning']
-                  }
-                }
-              },
-              required: ['suggestions']
-            }
-          }
-        ],
-        function_call: { name: 'generate_message_suggestions' },
         temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 400 // Reduced from 1000 for faster response
       }),
     });
 
@@ -315,34 +271,49 @@ IMPORTANT:
     }
 
     const result = await response.json();
-    const functionCall = result.choices[0].message.function_call;
+    const content = result.choices[0].message.content.trim();
     
-      if (functionCall && functionCall.name === 'generate_message_suggestions') {
-        const args = JSON.parse(functionCall.arguments);
-        const suggestions = args.suggestions.map((suggestion: any, index: number) => ({
-          id: `suggestion-${Date.now()}-${index}`,
-          text: suggestion.text,
-          type: suggestion.type,
-          confidence: suggestion.confidence,
-          context: suggestion.context,
-          reasoning: suggestion.reasoning
-        }));
+    try {
+      // Clean the content to remove markdown code blocks
+      let cleanContent = content.trim();
+      
+      // Remove markdown code blocks if present
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      // Parse JSON response
+      const parsed = JSON.parse(cleanContent);
+      const suggestions = parsed.suggestions.map((suggestion: any, index: number) => ({
+        id: `suggestion-${Date.now()}-${index}`,
+        text: suggestion.text,
+        type: suggestion.type || 'response',
+        confidence: suggestion.confidence || 0.8,
+        context: suggestion.context,
+        reasoning: suggestion.reasoning
+      }));
 
-        // If this is a direct chat with different languages, add translation options
-        if (shouldGenerateMultiLanguage) {
-          return await this.addLanguageOptions(suggestions, context);
-        }
-
-        return suggestions;
+      // For 1-on-1 chats: add other language suggestions if enabled
+      // For group chats: only return original suggestions (user language only)
+      if (includeOtherLanguage && context.isDirectChat && context.otherUserLanguage) {
+        return await this.addOtherLanguageSuggestions(suggestions, context);
       }
 
-    throw new Error('Invalid function call response');
+      return suggestions;
+    } catch (parseError) {
+      console.error('Failed to parse suggestions JSON:', parseError);
+      console.error('Content that failed to parse:', content);
+      // Fallback to simple text parsing
+      return this.parseSuggestionsFromText(content, context);
+    }
   }
 
   /**
-   * Add language options to suggestions for multi-language support
+   * Add suggestions in the other person's language with dual-button structure
    */
-  private async addLanguageOptions(
+  private async addOtherLanguageSuggestions(
     suggestions: SmartSuggestion[], 
     context: SuggestionContext
   ): Promise<SmartSuggestion[]> {
@@ -360,28 +331,78 @@ IMPORTANT:
             suggestion.text,
             context.otherUserLanguage!
           );
+          
+          // Create enhanced suggestion with language options
+          enhancedSuggestions.push({
+            ...suggestion,
+            languageOptions: {
+              userLanguage: suggestion.text,
+              otherLanguage: translatedText
+            }
+          });
         } catch (translationError) {
           console.warn('Failed to translate suggestion:', translationError);
-          // If translation fails, use original text
-          translatedText = suggestion.text;
+          // If translation fails, just add the original suggestion without language options
+          enhancedSuggestions.push(suggestion);
         }
-        
-        // Add the suggestion with language options (not duplicate)
-        enhancedSuggestions.push({
-          ...suggestion,
-          languageOptions: {
-            userLanguage: suggestion.text,
-            otherLanguage: translatedText
-          }
-        });
       }
       
       return enhancedSuggestions;
     } catch (error) {
-      console.error('Error adding language options:', error);
+      console.error('Error adding other language suggestions:', error);
       return suggestions; // Return original suggestions if translation fails
     }
   }
+
+  /**
+   * Fallback method to parse suggestions from text when JSON parsing fails
+   */
+  private parseSuggestionsFromText(
+    content: string, 
+    context: SuggestionContext
+  ): SmartSuggestion[] {
+    // Try to extract suggestions from JSON-like structure
+    const suggestions: SmartSuggestion[] = [];
+    
+    // Look for text fields in the content
+    const textMatches = content.match(/"text":\s*"([^"]+)"/g);
+    if (textMatches && textMatches.length > 0) {
+      textMatches.forEach((match, index) => {
+        const textMatch = match.match(/"text":\s*"([^"]+)"/);
+        if (textMatch && textMatch[1]) {
+          suggestions.push({
+            id: `suggestion-${Date.now()}-${index}`,
+            text: textMatch[1],
+            type: 'response',
+            confidence: 0.7,
+            context: 'Fallback JSON parsing',
+            reasoning: 'Extracted from JSON structure'
+          });
+        }
+      });
+    }
+    
+    // If no JSON structure found, fall back to simple line parsing
+    if (suggestions.length === 0) {
+      const lines = content.split('\n').filter(line => line.trim());
+      for (let i = 0; i < Math.min(3, lines.length); i++) {
+        const line = lines[i].trim();
+        if (line && !line.startsWith('{') && !line.startsWith('}') && !line.startsWith('```')) {
+          suggestions.push({
+            id: `suggestion-${Date.now()}-${i}`,
+            text: line,
+            type: 'response',
+            confidence: 0.7,
+            context: 'Fallback line parsing',
+            reasoning: 'Generated from text fallback'
+          });
+        }
+      }
+    }
+    
+    return suggestions;
+  }
+
 
   /**
    * Get language code from language name

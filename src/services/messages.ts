@@ -84,18 +84,8 @@ export class MessageService {
         // Update chat document with latest message info
         await this.updateChatLastMessage(chatId, sentMessage);
 
-        // Send local notification for message sent
-        try {
-          const { notificationService } = await import('./notifications');
-          await notificationService.sendLocalMessageNotification(
-            senderName || 'You',
-            text,
-            'text'
-          );
-        } catch (error) {
-          console.error('Error sending local notification:', error);
-          // Don't throw error - notifications are not critical for message sending
-        }
+        // Note: Local notifications are now handled by the recipient's device
+        // when they receive the message, not by the sender
 
         // Update status to sent after a short delay
         setTimeout(async () => {
@@ -185,13 +175,15 @@ export class MessageService {
 
       return onSnapshot(q, async (snapshot) => {
         const messages: Message[] = [];
+        
         snapshot.forEach((doc) => {
           const data = doc.data();
-          messages.push({
+          const message = {
             id: doc.id,
             ...data,
             timestamp: safeToMillis(data.timestamp),
-          } as Message);
+          } as Message;
+          messages.push(message);
         });
 
         // Save to local storage
@@ -199,6 +191,8 @@ export class MessageService {
           await syncService.queueMessage(message);
         }
 
+        // Note: Push notifications removed for Expo Go compatibility
+        // Use the test button in Profile screen to test notifications
 
         callback(messages);
       }, (error) => {
@@ -211,6 +205,23 @@ export class MessageService {
       return () => {}; // No-op unsubscribe
     }
   }
+
+
+  // Track which chat the user is currently viewing to avoid notifications for active chats
+  private static currentActiveChatId: string | null = null;
+  
+  // Set the currently active chat (call this when user opens a chat)
+  static setActiveChat(chatId: string | null) {
+    this.currentActiveChatId = chatId;
+  }
+  
+  // Check if user is currently viewing this chat
+  static isUserViewingChat(chatId: string): boolean {
+    return this.currentActiveChatId === chatId;
+  }
+  
+  // Note: Push notifications removed for Expo Go compatibility
+  // Use the test button in Profile screen to test notifications
 
   // Create a new chat
   static async createChat(participants: string[], name?: string): Promise<string> {
@@ -561,18 +572,8 @@ export class MessageService {
         // Update chat document with latest message info
         await this.updateChatLastMessage(chatId, sentMessage);
 
-        // Send local notification for image message sent
-        try {
-          const { notificationService } = await import('./notifications');
-          await notificationService.sendLocalMessageNotification(
-            senderName || 'You',
-            text || 'Image',
-            'image'
-          );
-        } catch (error) {
-          console.error('Error sending local notification for image message:', error);
-          // Don't throw error - notifications are not critical for message sending
-        }
+        // Note: Local notifications are now handled by the recipient's device
+        // when they receive the message, not by the sender
 
         // Update status to sent after a short delay
         setTimeout(async () => {
@@ -687,18 +688,8 @@ export class MessageService {
         // Update chat document with latest message info
         await this.updateChatLastMessage(chatId, sentMessage);
 
-        // Send local notification for voice message sent
-        try {
-          const { notificationService } = await import('./notifications');
-          await notificationService.sendLocalMessageNotification(
-            senderName || 'You',
-            'Voice message',
-            'voice'
-          );
-        } catch (error) {
-          console.error('Error sending local notification for voice message:', error);
-          // Don't throw error - notifications are not critical for message sending
-        }
+        // Note: Local notifications are now handled by the recipient's device
+        // when they receive the message, not by the sender
 
         // Update status to sent after a short delay
         setTimeout(async () => {

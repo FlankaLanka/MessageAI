@@ -237,3 +237,7 @@
 - [x] Add message reactions with Facebook Messenger-style display
 - [x] Add cultural hints language localization
 - [x] Add enhanced JSON parsing for cultural hints with fallback handling
+- [x] Add voice message inline transcription display
+- [x] Add voice message inline translation with same UI as regular text messages
+- [x] Add enhanced voice translation with cultural hints and intelligent processing
+- [x] Add voice translation RAG context integration

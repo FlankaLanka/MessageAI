@@ -19,6 +19,8 @@ subgraph Client["📱 React Native (Expo)"]
   SmartSuggestions[Smart Message Suggestions]
   ImageUpload[Image Upload System]
   MessageReactions[Message Reactions System]
+  VoiceTranscription[Voice Message Transcription]
+  VoiceTranslation[Voice Message Translation]
 end
 
 subgraph Firebase["🔥 Firebase Backend"]
