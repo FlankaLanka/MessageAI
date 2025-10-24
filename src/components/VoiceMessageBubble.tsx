@@ -52,7 +52,7 @@ export default function VoiceMessageBubble({
     progress: 0
   });
   
-  // Transcription state
+  // Transcription state - show by default if transcription exists
   const [showTranscription, setShowTranscription] = useState(false);
   
   // Voice translation state
@@ -126,6 +126,32 @@ export default function VoiceMessageBubble({
       }
     };
   }, []);
+
+  // Auto-transcribe voice message when component mounts
+  useEffect(() => {
+    const autoTranscribe = async () => {
+      if (message && !message.transcription && message.audioUrl) {
+        try {
+          console.log('Auto-transcribing voice message:', message.id);
+          const { voiceTranslationService } = await import('../services/voiceTranslation');
+          await voiceTranslationService.transcribeVoiceMessage(message);
+          console.log('Auto-transcription completed for message:', message.id);
+        } catch (error) {
+          console.error('Auto-transcription failed:', error);
+          // Don't show error to user, just log it
+        }
+      }
+    };
+
+    autoTranscribe();
+  }, [message]);
+
+  // Auto-show transcription when it becomes available
+  useEffect(() => {
+    if (message?.transcription && !showTranscription) {
+      setShowTranscription(true);
+    }
+  }, [message?.transcription, showTranscription]);
 
   // Update current time from props
   useEffect(() => {
@@ -311,30 +337,23 @@ export default function VoiceMessageBubble({
         )}
       </View>
 
-      {/* Transcription Modal */}
-      <Modal
-        visible={showTranscription}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTranscription(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Voice Transcription</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowTranscription(false)}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.transcriptionContent}>
-              {message?.transcription}
-            </Text>
+      {/* Inline Transcription Display */}
+      {showTranscription && message?.transcription && (
+        <View style={styles.transcriptionContainer}>
+          <View style={styles.transcriptionHeader}>
+            <Text style={styles.transcriptionTitle}>{t('transcription')}</Text>
+            <TouchableOpacity
+              style={styles.hideTranscriptionButton}
+              onPress={() => setShowTranscription(false)}
+            >
+              <Ionicons name="close" size={16} color="#666" />
+            </TouchableOpacity>
           </View>
+          <Text style={styles.transcriptionText}>
+            {message.transcription}
+          </Text>
         </View>
-      </Modal>
+      )}
 
     </View>
   );
@@ -539,5 +558,31 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#111827',
     padding: 20,
+  },
+  transcriptionContainer: {
+    backgroundColor: '#F8F9FA',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    padding: 12,
+    marginTop: 8,
+  },
+  transcriptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  transcriptionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  hideTranscriptionButton: {
+    padding: 4,
+  },
+  transcriptionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#111827',
   },
 });
