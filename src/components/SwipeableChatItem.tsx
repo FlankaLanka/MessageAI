@@ -72,10 +72,10 @@ export default function SwipeableChatItem({
     if (event.nativeEvent.state === State.END) {
       const { translationX, velocityX } = event.nativeEvent;
       
-      if (translationX > 80 || velocityX > 300) {
-        // Swipe right - show delete/leave action
+      if (translationX < -80 || velocityX < -300) {
+        // Swipe left - show delete/leave action
         Animated.spring(translateX, {
-          toValue: 100,
+          toValue: -100,
           useNativeDriver: true,
         }).start();
       } else {
@@ -137,8 +137,8 @@ export default function SwipeableChatItem({
 
   return (
     <View style={styles.container}>
-      {/* Right Background Actions (Delete/Leave) */}
-      <View style={styles.rightBackgroundActions}>
+      {/* Left Background Actions (Delete/Leave) */}
+      <View style={styles.leftBackgroundActions}>
         {(!isGroup || isUserAdmin) && (
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
@@ -153,8 +153,7 @@ export default function SwipeableChatItem({
             style={[styles.actionButton, styles.leaveButton]}
             onPress={handleLeave}
           >
-            <Text style={styles.actionButtonText}>👋</Text>
-            <Text style={styles.actionButtonLabel}>Leave</Text>
+            <Text style={styles.leaveButtonText}>↗</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -235,8 +234,7 @@ export default function SwipeableChatItem({
                   onPress={handleLeave}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.webActionButtonText}>👋</Text>
-                  <Text style={styles.webActionButtonLabel}>Leave</Text>
+                  <Text style={styles.webLeaveButtonText}>↗</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -310,14 +308,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  rightBackgroundActions: {
+  leftBackgroundActions: {
     position: 'absolute',
-    right: 0,
+    left: 0,
     top: 0,
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 20,
+    paddingLeft: 20,
     width: 100,
   },
   actionButton: {
@@ -340,6 +338,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   deleteButtonText: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  leaveButtonText: {
     fontSize: 24,
     color: '#fff',
     fontWeight: 'bold',
@@ -473,6 +476,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   webDeleteButtonText: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  webLeaveButtonText: {
     fontSize: 24,
     color: '#fff',
     fontWeight: 'bold',
