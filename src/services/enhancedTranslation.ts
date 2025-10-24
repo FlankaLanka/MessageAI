@@ -50,17 +50,27 @@ class EnhancedTranslationService {
     targetLanguage: string,
     options: EnhancedTranslationOptions = {}
   ): Promise<EnhancedTranslationResult> {
+    console.log('🔤 EnhancedTranslationService.translateMessage called:');
+    console.log('  - message.id:', message.id);
+    console.log('  - message.text:', message.text);
+    console.log('  - message.transcription:', message.transcription);
+    console.log('  - targetLanguage:', targetLanguage);
+    console.log('  - options:', options);
+    
     const opts = { ...this.defaultOptions, ...options };
     
     // Check cache first
     const store = useStore.getState();
-    const textHash = this.createTextHash(message.text || '');
+    // For voice messages, use transcription; for text messages, use text
+    const messageText = message.transcription || message.text || '';
+    console.log('🔤 Using messageText:', messageText);
+    const textHash = this.createTextHash(messageText);
     const cachedTranslation = store.getCachedTranslation(textHash, targetLanguage);
     const cachedHints = store.getCachedCulturalHints(textHash);
     const cachedProcessing = store.getCachedIntelligentProcessing(textHash);
     
     if (cachedTranslation && cachedHints && cachedProcessing) {
-      console.log('Using cached enhanced translation for:', message.text?.substring(0, 50));
+      console.log('Using cached enhanced translation for:', messageText.substring(0, 50));
       return {
         translation: cachedTranslation.text,
         culturalHints: cachedHints,
@@ -83,13 +93,26 @@ class EnhancedTranslationService {
       };
 
       // Step 3: Try RAG translation first if enabled
+      console.log('🔤 EnhancedTranslationService - RAG check:');
+      console.log('  - opts.useRAG:', opts.useRAG);
+      console.log('  - ragContext.messages.length:', ragContext.messages.length);
+      console.log('  - ragTranslationService.isAvailable():', ragTranslationService.isAvailable());
+      
+      // Check environment variables
+      console.log('🔤 EnhancedTranslationService - Environment check:');
+      console.log('  - EXPO_PUBLIC_OPENAI_API_KEY exists:', !!process.env.EXPO_PUBLIC_OPENAI_API_KEY);
+      console.log('  - EXPO_PUBLIC_SUPABASE_URL exists:', !!process.env.EXPO_PUBLIC_SUPABASE_URL);
+      console.log('  - EXPO_PUBLIC_SUPABASE_ANON_KEY exists:', !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+      
       if (opts.useRAG && ragContext.messages.length > 0) {
         try {
+          console.log('🔤 EnhancedTranslationService - Attempting RAG translation...');
           const ragResult = await ragTranslationService.translateWithRAG(
-            message.text || '',
+            messageText,
             ragContext,
             userPreferences
           );
+          console.log('🔤 EnhancedTranslationService - RAG result:', ragResult);
 
           // Check confidence threshold
           if (ragResult.intelligent_processing.confidence && 
@@ -159,17 +182,28 @@ class EnhancedTranslationService {
    */
   private async prepareRAGContext(message: Message, limit: number): Promise<RAGContext> {
     try {
+      console.log('🔤 EnhancedTranslationService - prepareRAGContext:');
+      console.log('  - message.chatId:', message.chatId);
+      console.log('  - messageText:', message.transcription || message.text || '');
+      console.log('  - limit:', limit);
+      
       // Use Supabase Vector to retrieve relevant conversation context
       const ragTranslationService = (await import('./ragTranslation')).ragTranslationService;
+      // For voice messages, use transcription; for text messages, use text
+      const messageText = message.transcription || message.text || '';
       const context = await ragTranslationService.retrieveConversationContext(
         message.chatId,
-        message.text || '',
+        messageText,
         limit
       );
 
+      console.log('🔤 EnhancedTranslationService - RAG context result:');
+      console.log('  - context.messages.length:', context.messages.length);
+      console.log('  - context.messages:', context.messages);
+
       return context;
     } catch (error) {
-      console.error('Error preparing RAG context:', error);
+      console.error('🔤 EnhancedTranslationService - Error preparing RAG context:', error);
       return { messages: [] };
     }
   }
@@ -182,7 +216,8 @@ class EnhancedTranslationService {
     targetLanguage: string,
     includeCulturalHints: boolean
   ): Promise<EnhancedTranslationResult> {
-    const text = message.text || '';
+    // For voice messages, use transcription; for text messages, use text
+    const text = message.transcription || message.text || '';
     
     if (includeCulturalHints) {
       const result = await simpleTranslationService.translateWithCulturalHints(

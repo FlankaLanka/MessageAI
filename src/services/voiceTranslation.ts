@@ -222,7 +222,13 @@ export class VoiceTranslationService {
    * Transcribe voice message without translation
    */
   async transcribeVoiceMessage(message: Message): Promise<TranscriptionResult> {
+    console.log('🎤 VoiceTranslationService.transcribeVoiceMessage called:');
+    console.log('  - message.id:', message.id);
+    console.log('  - message.transcription exists:', !!message.transcription);
+    console.log('  - message.audioUrl exists:', !!message.audioUrl);
+    
     if (message.transcription && message.transcription.trim().length > 0) {
+      console.log('🎤 Using existing transcription:', message.transcription);
       return {
         text: message.transcription,
         language: message.originalLang,

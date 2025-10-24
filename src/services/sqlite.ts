@@ -535,6 +535,22 @@ class SQLiteService {
     }
   }
 
+  async removeUserFromChat(chatId: string, userId: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      // For now, we'll delete the entire chat from cache when a user leaves
+      // This is because SQLite doesn't store participant lists in a separate table
+      // In a more complex implementation, we'd have a participants table
+      await this.deleteChatFromCache(chatId);
+      
+      console.log('User removed from chat cache:', { chatId, userId });
+    } catch (error) {
+      console.error('Error removing user from chat cache:', error);
+      throw error;
+    }
+  }
+
   // Cleanup operations
   async clearOldMessages(daysToKeep: number = 30) {
     if (!this.db) throw new Error('Database not initialized');

@@ -129,6 +129,9 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       return newTranslations;
     });
   };
+
+  // Voice messages use the same translation handler as text messages
+  // No need for a separate wrapper function
   
   // Voice recording state
   const [recordedAudio, setRecordedAudio] = useState<{uri: string, duration: number} | null>(null);
@@ -922,6 +925,9 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             senderName={isGroupChat ? senderName : undefined}
             senderPhotoURL={item.senderPhotoURL}
             chatMessages={messages} // Pass chat context for RAG analysis
+            messageTranslations={messageTranslations}
+            onTranslationComplete={handleTranslationComplete}
+            onCloseTranslation={handleCloseTranslation}
           />
         ) : item.imageUrl ? (
           /* Image Message Bubble */

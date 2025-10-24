@@ -60,6 +60,11 @@ class RAGTranslationService {
     ragContext: RAGContext,
     userPreferences: UserPreferences
   ): Promise<RAGTranslationResult> {
+    console.log('🔤 RAGTranslationService.translateWithRAG called:');
+    console.log('  - userMessage:', userMessage);
+    console.log('  - ragContext.messages.length:', ragContext.messages.length);
+    console.log('  - userPreferences:', userPreferences);
+    
     if (!this.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
@@ -670,7 +675,19 @@ IMPORTANT: Write all explanations in the user's interface language: ${this.getUs
    * Check if service is available
    */
   isAvailable(): boolean {
-    return !!this.apiKey;
+    const hasApiKey = !!this.apiKey;
+    const hasSupabaseUrl = !!this.supabaseUrl;
+    const hasSupabaseKey = !!this.supabaseKey;
+    
+    console.log('🔤 RAGTranslationService - isAvailable check:');
+    console.log('  - hasApiKey:', hasApiKey);
+    console.log('  - hasSupabaseUrl:', hasSupabaseUrl);
+    console.log('  - hasSupabaseKey:', hasSupabaseKey);
+    console.log('  - apiKey length:', this.apiKey?.length || 0);
+    console.log('  - supabaseUrl:', this.supabaseUrl);
+    console.log('  - supabaseKey length:', this.supabaseKey?.length || 0);
+    
+    return hasApiKey && hasSupabaseUrl && hasSupabaseKey;
   }
 
   /**

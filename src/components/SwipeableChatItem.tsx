@@ -137,8 +137,8 @@ export default function SwipeableChatItem({
 
   return (
     <View style={styles.container}>
-      {/* Left Background Actions (Delete/Leave) */}
-      <View style={styles.leftBackgroundActions}>
+      {/* Right Background Actions (Delete/Leave) */}
+      <View style={styles.rightBackgroundActions}>
         {(!isGroup || isUserAdmin) && (
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
@@ -316,6 +316,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 20,
+    width: 100,
+  },
+  rightBackgroundActions: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 20,
     width: 100,
   },
   actionButton: {

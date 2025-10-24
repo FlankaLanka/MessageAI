@@ -38,6 +38,17 @@ class SupabaseVectorService {
    * Check if Supabase is configured
    */
   isConfigured(): boolean {
+    const hasBaseUrl = !!this.baseUrl;
+    const hasApiKey = !!this.apiKey;
+    const hasSupabase = !!this.supabase;
+    
+    console.log('🔤 SupabaseVectorService - isConfigured check:');
+    console.log('  - hasBaseUrl:', hasBaseUrl);
+    console.log('  - hasApiKey:', hasApiKey);
+    console.log('  - hasSupabase:', hasSupabase);
+    console.log('  - baseUrl:', this.baseUrl);
+    console.log('  - apiKey length:', this.apiKey?.length || 0);
+    
     return !!(this.baseUrl && this.apiKey && this.supabase);
   }
 

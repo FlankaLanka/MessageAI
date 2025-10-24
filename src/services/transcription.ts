@@ -1,4 +1,4 @@
-import { openai } from './firebase';
+import OpenAI from 'openai';
 
 export interface TranscriptionResult {
   text: string;
@@ -8,8 +8,15 @@ export interface TranscriptionResult {
 
 export class TranscriptionService {
   private static instance: TranscriptionService;
+  private openai: OpenAI;
   
-  private constructor() {}
+  private constructor() {
+    const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI API key not found');
+    }
+    this.openai = new OpenAI({ apiKey });
+  }
   
   static getInstance(): TranscriptionService {
     if (!TranscriptionService.instance) {
@@ -77,17 +84,23 @@ export class TranscriptionService {
    * Transcribe audio with language detection
    */
   async transcribeWithLanguageDetection(audioUri: string): Promise<TranscriptionResult> {
+    console.log('🎤 TranscriptionService.transcribeWithLanguageDetection called:');
+    console.log('  - audioUri:', audioUri);
+    
     try {
       const result = await this.transcribeAudio(audioUri);
+      console.log('🎤 Transcription result:', result);
       
       // If language wasn't detected, try to detect it from the text
       if (!result.language && result.text) {
+        console.log('🎤 Detecting language for text:', result.text);
         result.language = await this.detectLanguage(result.text);
+        console.log('🎤 Detected language:', result.language);
       }
       
       return result;
     } catch (error) {
-      console.error('Error in transcribeWithLanguageDetection:', error);
+      console.error('🎤 Error in transcribeWithLanguageDetection:', error);
       throw error;
     }
   }
@@ -97,7 +110,7 @@ export class TranscriptionService {
    */
   private async detectLanguage(text: string): Promise<string> {
     try {
-      const response = await openai.chat.completions.create({
+      const response = await this.openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           {

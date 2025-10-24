@@ -16,6 +16,9 @@ import { Message, Translation } from '../types';
 import { simpleTranslationService } from '../services/simpleTranslation';
 import { useLocalization } from '../hooks/useLocalization';
 import { useStore } from '../store/useStore';
+import { TranslationButton } from './TranslationButton';
+import { TranslatedMessageDisplay } from './TranslatedMessageDisplay';
+import { ReactionButton } from './ReactionButton';
 
 interface VoiceMessageBubbleProps {
   audioUrl: string;
@@ -29,6 +32,10 @@ interface VoiceMessageBubbleProps {
   message?: Message;
   senderName?: string;
   senderPhotoURL?: string;
+  chatMessages?: Message[]; // For RAG context
+  messageTranslations?: { [messageId: string]: any }; // Translation state
+  onTranslationComplete?: (messageId: string, translation: any) => void; // Translation callback
+  onCloseTranslation?: (messageId: string) => void; // Close translation callback
 }
 
 export default function VoiceMessageBubble({
@@ -41,7 +48,11 @@ export default function VoiceMessageBubble({
   currentTime,
   message,
   senderName,
-  senderPhotoURL
+  senderPhotoURL,
+  chatMessages = [],
+  messageTranslations = {},
+  onTranslationComplete,
+  onCloseTranslation
 }: VoiceMessageBubbleProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [localAudioUri, setLocalAudioUri] = useState<string | null>(null);
@@ -55,11 +66,18 @@ export default function VoiceMessageBubble({
   // Transcription state - show by default if transcription exists
   const [showTranscription, setShowTranscription] = useState(false);
   
-  // Voice translation state
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [translation, setTranslation] = useState<string | null>(null);
-  const [showTranslation, setShowTranslation] = useState(false);
-  const [translationError, setTranslationError] = useState<string | null>(null);
+  // Local transcription state to track when transcription is completed
+  const [localTranscription, setLocalTranscription] = useState<string | null>(message?.transcription || null);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('🎤 VoiceMessageBubble Debug:');
+    console.log('  - message.transcription:', message?.transcription);
+    console.log('  - localTranscription:', localTranscription);
+    console.log('  - message.text:', message?.text);
+    console.log('  - message.id:', message?.id);
+    console.log('  - showTranscription:', showTranscription);
+  }, [message?.transcription, localTranscription, message?.text, message?.id, showTranscription]);
   
   const { t } = useLocalization();
   const { defaultTranslationLanguage } = useStore();
@@ -130,28 +148,55 @@ export default function VoiceMessageBubble({
   // Auto-transcribe voice message when component mounts
   useEffect(() => {
     const autoTranscribe = async () => {
-      if (message && !message.transcription && message.audioUrl) {
+      console.log('🎤 Auto-transcription check:');
+      console.log('  - message exists:', !!message);
+      console.log('  - localTranscription exists:', !!localTranscription);
+      console.log('  - audioUrl exists:', !!message?.audioUrl);
+      
+      if (message && !localTranscription && message.audioUrl) {
         try {
-          console.log('Auto-transcribing voice message:', message.id);
+          console.log('🎤 Starting auto-transcription for message:', message.id);
           const { voiceTranslationService } = await import('../services/voiceTranslation');
-          await voiceTranslationService.transcribeVoiceMessage(message);
-          console.log('Auto-transcription completed for message:', message.id);
+          const result = await voiceTranslationService.transcribeVoiceMessage(message);
+          console.log('🎤 Auto-transcription completed for message:', message.id);
+          console.log('🎤 Transcription result:', result);
+          console.log('🎤 Transcription text:', result.text);
+          
+          // Update local transcription state
+          setLocalTranscription(result.text);
+          console.log('🎤 Updated localTranscription to:', result.text);
         } catch (error) {
-          console.error('Auto-transcription failed:', error);
+          console.error('🎤 Auto-transcription failed:', error);
           // Don't show error to user, just log it
         }
+      } else {
+        console.log('🎤 Skipping auto-transcription - conditions not met');
       }
     };
 
     autoTranscribe();
-  }, [message]);
+  }, [message, localTranscription]);
 
   // Auto-show transcription when it becomes available
   useEffect(() => {
-    if (message?.transcription && !showTranscription) {
+    if (localTranscription && !showTranscription) {
       setShowTranscription(true);
     }
-  }, [message?.transcription, showTranscription]);
+  }, [localTranscription, showTranscription]);
+
+  // Update message object when transcription becomes available
+  useEffect(() => {
+    if (localTranscription && message && !message.text) {
+      console.log('🎤 VoiceMessageBubble - Updating message with transcription:');
+      console.log('  - localTranscription:', localTranscription);
+      console.log('  - message.text before:', message.text);
+      console.log('  - message.transcription:', message.transcription);
+      
+      // Update the message object to include the transcription as text
+      message.text = localTranscription;
+      console.log('  - message.text after:', message.text);
+    }
+  }, [localTranscription, message]);
 
   // Update current time from props
   useEffect(() => {
@@ -169,75 +214,54 @@ export default function VoiceMessageBubble({
     setShowTranscription(true);
   };
 
-  const handleVoiceTranslation = async () => {
-    if (!message?.transcription) {
-      setTranslationError(t('noTranscriptionAvailable'));
-      return;
-    }
 
-    setIsTranslating(true);
-    setTranslationError(null);
-
-    try {
-      const result = await simpleTranslationService.translateText(
-        message.transcription,
-        defaultTranslationLanguage // Use user's default translation language
-      );
-      setTranslation(result.translation.text);
-      setShowTranslation(true);
-    } catch (error) {
-      console.error('Voice translation error:', error);
-      setTranslationError(t('translationFailed'));
-    } finally {
-      setIsTranslating(false);
-    }
-  };
-
-  const handleCloseTranslation = () => {
-    setShowTranslation(false);
-    setTranslation(null);
-    setTranslationError(null);
-  };
 
 
   return (
     <View style={[
-      styles.container,
-      isOwnMessage ? styles.ownContainer : styles.otherContainer
+      styles.messageWrapper,
+      isOwnMessage ? styles.ownMessageWrapper : styles.otherMessageWrapper
     ]}>
-      <TouchableOpacity
-        style={[
-          styles.bubble,
-          isOwnMessage ? styles.ownBubble : styles.otherBubble
-        ]}
-        onPress={handlePlayPause}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator 
-            size="small" 
-            color={isOwnMessage ? '#fff' : '#007AFF'} 
-          />
-        ) : (
-          <Ionicons
-            name={isPlaying ? 'pause' : 'play'}
-            size={20}
-            color={isOwnMessage ? '#fff' : '#007AFF'}
-          />
-        )}
-        
-        <View style={styles.content}>
-          {/* Waveform visualization (simplified) */}
+      <View style={[
+        styles.messageBubble,
+        isOwnMessage ? styles.ownBubble : styles.otherBubble
+      ]}>
+        {/* Voice Controls Row */}
+        <View style={styles.voiceControlsRow}>
+          {/* Play/Pause Button */}
+          <TouchableOpacity
+            style={[
+              styles.playButton,
+              isOwnMessage ? styles.ownPlayButton : styles.otherPlayButton
+            ]}
+            onPress={handlePlayPause}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator 
+                size="small" 
+                color={isOwnMessage ? '#fff' : '#007AFF'} 
+              />
+            ) : (
+              <Ionicons
+                name={isPlaying ? 'pause' : 'play'}
+                size={20}
+                color={isOwnMessage ? '#fff' : '#007AFF'}
+              />
+            )}
+          </TouchableOpacity>
+          
+          {/* Waveform visualization (longer) */}
           <View style={styles.waveform}>
-            {Array.from({ length: 20 }, (_, i) => (
+            {Array.from({ length: 40 }, (_, i) => (
               <View
                 key={i}
                 style={[
                   styles.waveformBar,
                   {
-                    height: Math.random() * 20 + 5,
+                    height: Math.random() * 25 + 8,
                     backgroundColor: isOwnMessage ? '#fff' : '#007AFF',
-                    opacity: playbackStatus.progress > i / 20 ? 1 : 0.3
+                    opacity: playbackStatus.progress > i / 40 ? 1 : 0.3
                   }
                 ]}
               />
@@ -252,131 +276,111 @@ export default function VoiceMessageBubble({
             {formatDuration(duration)}
           </Text>
         </View>
-      </TouchableOpacity>
-
-      {/* Voice Message Actions - Inline within the bubble */}
-      <View style={styles.voiceActionsContainer}>
-        <View style={styles.voiceActionsRow}>
-          {/* Transcription Button - Only show if transcription exists */}
-          {message?.transcription && (
-            <TouchableOpacity
-              style={styles.inlineActionButton}
-              onPress={handleShowTranscription}
-            >
-              <Ionicons name="text" size={14} color="#666" />
-              <Text style={styles.inlineActionText}>{t('viewTranscription')}</Text>
-            </TouchableOpacity>
-          )}
-          
-          {/* Translation Button - Always show */}
-          <TouchableOpacity
-            style={[
-              styles.inlineActionButton,
-              styles.translateButton,
-              isTranslating && styles.translationButtonDisabled,
-              !message?.transcription && styles.translationButtonNoTranscription
-            ]}
-            onPress={handleVoiceTranslation}
-            disabled={isTranslating}
-          >
-            {isTranslating ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
-            ) : (
-              <Ionicons name="language" size={14} color="#3B82F6" />
-            )}
-            <Text style={styles.inlineActionText}>
-              {isTranslating ? t('translating') : t('translate')}
-            </Text>
-          </TouchableOpacity>
-        </View>
         
-        {/* No Transcription Message */}
-        {!message?.transcription && (
-          <Text style={styles.noTranscriptionText}>
-            {t('noTranscriptionAvailable')}
-          </Text>
-        )}
-        
-        {/* Translation Error */}
-        {translationError && (
-          <Text style={styles.translationError}>{translationError}</Text>
-        )}
-        
-        {/* Inline Translation Display */}
-        {showTranslation && translation && (
-          <View style={[
-            styles.inlineTranslation,
-            isOwnMessage ? styles.ownInlineTranslation : styles.otherInlineTranslation
-          ]}>
-            <View style={styles.translationHeader}>
-              <Text style={[
-                styles.translationLabel,
-                isOwnMessage ? styles.ownTranslationLabel : styles.otherTranslationLabel
-              ]}>
-                EN
-              </Text>
-              <TouchableOpacity 
-                onPress={handleCloseTranslation}
-                style={styles.closeTranslationButton}
-              >
-                <Text style={[
-                  styles.closeTranslationText,
-                  isOwnMessage ? styles.ownCloseText : styles.otherCloseText
-                ]}>
-                  ×
-                </Text>
-              </TouchableOpacity>
-            </View>
+        {/* Transcription - treated exactly like regular text message */}
+        {localTranscription && (
+          <>
             <Text style={[
-              styles.translationText,
-              isOwnMessage ? styles.ownTranslationText : styles.otherTranslationText
+              styles.messageText,
+              isOwnMessage ? styles.ownText : styles.otherText
             ]}>
-              {translation}
+              {localTranscription}
             </Text>
-          </View>
+            
+            {/* Enhanced Inline Translation - same as text messages */}
+            {messageTranslations[message.id] && (
+              <TranslatedMessageDisplay
+                translation={messageTranslations[message.id].text}
+                language={messageTranslations[message.id].language}
+                isOwn={isOwnMessage}
+                onClose={() => onCloseTranslation?.(message.id)}
+                culturalHints={messageTranslations[message.id].culturalHints}
+                intelligentProcessing={messageTranslations[message.id].intelligentProcessing}
+              />
+            )}
+          </>
         )}
-      </View>
-
-      {/* Inline Transcription Display */}
-      {showTranscription && message?.transcription && (
-        <View style={styles.transcriptionContainer}>
-          <View style={styles.transcriptionHeader}>
-            <Text style={styles.transcriptionTitle}>{t('transcription')}</Text>
-            <TouchableOpacity
-              style={styles.hideTranscriptionButton}
-              onPress={() => setShowTranscription(false)}
-            >
-              <Ionicons name="close" size={16} color="#666" />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.transcriptionText}>
-            {message.transcription}
+        
+        {/* Message Bottom Row - same as text messages */}
+        <View style={styles.messageBottomRow}>
+          <Text style={styles.timestamp}>
+            {new Date(message?.timestamp || Date.now()).toLocaleTimeString()}
           </Text>
+          {/* Translation Button - same as text messages */}
+          {localTranscription && !messageTranslations[message.id] && (
+            <>
+              {console.log('🎤 VoiceMessageBubble - Creating TranslationButton:')}
+              {console.log('  - messageId:', message.id)}
+              {console.log('  - originalText (localTranscription):', localTranscription)}
+              {console.log('  - message.text:', message.text)}
+              {console.log('  - message.transcription:', message.transcription)}
+              {console.log('  - message object:', message)}
+              <TranslationButton
+                messageId={message.id}
+                originalText={localTranscription}
+                onTranslationComplete={onTranslationComplete}
+                isOwn={isOwnMessage}
+                message={{
+                  ...message,
+                  text: localTranscription, // Use transcription as the text content
+                  // Ensure the message is structured exactly like a text message
+                  type: 'text' // Force it to be treated as text message
+                }}
+                chatMessages={chatMessages}
+              />
+            </>
+          )}
         </View>
-      )}
-
+        
+        {/* Reaction Button - same as text messages */}
+        <ReactionButton
+          onPress={() => {
+            // Handle reaction button press - same as text messages
+            console.log('Reaction button pressed for voice message:', message?.id);
+          }}
+          isOwn={isOwnMessage}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  // Message wrapper styles - same as text messages
+  messageWrapper: {
+    marginVertical: 2,
+  },
+  ownMessageWrapper: {
+    alignItems: 'flex-end',
+  },
+  otherMessageWrapper: {
+    alignItems: 'flex-start',
+  },
+  messageBubble: {
     maxWidth: '80%',
-    marginVertical: 4,
-  },
-  ownContainer: {
-    alignSelf: 'flex-end',
-  },
-  otherContainer: {
-    alignSelf: 'flex-start',
-  },
-  bubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
     minWidth: 120,
+  },
+  voiceControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  ownPlayButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  otherPlayButton: {
+    backgroundColor: '#F3F4F6',
   },
   ownBubble: {
     backgroundColor: '#007AFF',
@@ -384,20 +388,41 @@ const styles = StyleSheet.create({
   otherBubble: {
     backgroundColor: '#E5E5EA',
   },
-  content: {
-    flex: 1,
-    marginLeft: 12,
+  // Text message styles - same as text messages
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  ownText: {
+    color: '#FFFFFF',
+  },
+  otherText: {
+    color: '#000000',
+  },
+  messageBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 8, // Add bottom margin for reaction button spacing
+  },
+  timestamp: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    alignSelf: 'flex-end',
   },
   waveform: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 20,
+    height: 30,
     marginBottom: 4,
   },
   waveformBar: {
-    width: 2,
-    borderRadius: 1,
+    width: 3,
+    borderRadius: 1.5,
   },
   duration: {
     fontSize: 12,
@@ -461,128 +486,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     marginTop: 4,
-  },
-  // Inline translation styles
-  inlineTranslation: {
-    marginTop: 8,
-    padding: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  ownInlineTranslation: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  otherInlineTranslation: {
-    backgroundColor: 'rgba(59, 130, 246, 0.05)',
-    borderColor: 'rgba(59, 130, 246, 0.2)',
-  },
-  translationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  translationLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    opacity: 0.8,
-  },
-  ownTranslationLabel: {
-    color: '#BFDBFE',
-  },
-  otherTranslationLabel: {
-    color: '#6B7280',
-  },
-  closeTranslationButton: {
-    padding: 2,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeTranslationText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  ownCloseText: {
-    color: '#BFDBFE',
-  },
-  otherCloseText: {
-    color: '#6B7280',
-  },
-  translationText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  ownTranslationText: {
-    color: '#FFFFFF',
-    opacity: 0.9,
-  },
-  otherTranslationText: {
-    color: '#374151',
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    width: '100%',
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  transcriptionContent: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#111827',
-    padding: 20,
-  },
-  transcriptionContainer: {
-    backgroundColor: '#F8F9FA',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    padding: 12,
-    marginTop: 8,
-  },
-  transcriptionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  transcriptionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  hideTranscriptionButton: {
-    padding: 4,
-  },
-  transcriptionText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#111827',
   },
 });
