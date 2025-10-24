@@ -213,47 +213,6 @@ export default function ChatListScreen({ onNavigateToChat, onNavigateToCreateGro
     showLeaveConfirmAlert('Chat', performLeave);
   };
 
-  const handleMuteChat = async (chat: Chat) => {
-    if (!user) return;
-
-    try {
-      await notificationService.muteChat(chat.id, user.uid);
-      
-      // Update local chat state
-      const updatedChats = chats.map(c => 
-        c.id === chat.id 
-          ? { ...c, muted: true, mutedBy: user.uid, mutedAt: Date.now() }
-          : c
-      );
-      setChats(updatedChats);
-      
-      showSuccessAlert('Chat muted. You will not receive notifications from this chat.');
-    } catch (error: any) {
-      console.error('Error muting chat:', error);
-      showErrorAlert(error.message || 'Failed to mute chat');
-    }
-  };
-
-  const handleUnmuteChat = async (chat: Chat) => {
-    if (!user) return;
-
-    try {
-      await notificationService.unmuteChat(chat.id, user.uid);
-      
-      // Update local chat state
-      const updatedChats = chats.map(c => 
-        c.id === chat.id 
-          ? { ...c, muted: false, mutedBy: undefined, mutedAt: undefined }
-          : c
-      );
-      setChats(updatedChats);
-      
-      showSuccessAlert('Chat unmuted. You will now receive notifications from this chat.');
-    } catch (error: any) {
-      console.error('Error unmuting chat:', error);
-      showErrorAlert(error.message || 'Failed to unmute chat');
-    }
-  };
 
   const renderChat = ({ item }: { item: Chat }) => {
     return (
@@ -263,8 +222,6 @@ export default function ChatListScreen({ onNavigateToChat, onNavigateToCreateGro
         onPress={() => onNavigateToChat(item.id)}
         onDelete={() => handleDeleteChat(item)}
         onLeave={() => handleLeaveChat(item)}
-        onMute={() => handleMuteChat(item)}
-        onUnmute={() => handleUnmuteChat(item)}
         isSmallScreen={isSmallScreen}
       />
     );

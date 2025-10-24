@@ -20,8 +20,6 @@ interface SwipeableChatItemProps {
   onPress: () => void;
   onDelete: () => void;
   onLeave: () => void;
-  onMute: () => void;
-  onUnmute: () => void;
   isSmallScreen?: boolean;
 }
 
@@ -31,15 +29,12 @@ export default function SwipeableChatItem({
   onPress,
   onDelete,
   onLeave,
-  onMute,
-  onUnmute,
   isSmallScreen = false
 }: SwipeableChatItemProps) {
   const { t } = useLocalization();
   const translateX = useRef(new Animated.Value(0)).current;
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [showWebActions, setShowWebActions] = useState(false);
-  const isMuted = chat.muted || false;
   const isGroup = chat.type === 'group';
   const participantCount = chat.participants?.length || 0;
   const isUserAdmin = user && chat.adminIds?.includes(user.uid);
@@ -77,13 +72,7 @@ export default function SwipeableChatItem({
     if (event.nativeEvent.state === State.END) {
       const { translationX, velocityX } = event.nativeEvent;
       
-      if (translationX < -80 || velocityX < -300) {
-        // Swipe left - show mute action
-        Animated.spring(translateX, {
-          toValue: -100,
-          useNativeDriver: true,
-        }).start();
-      } else if (translationX > 80 || velocityX > 300) {
+      if (translationX > 80 || velocityX > 300) {
         // Swipe right - show delete/leave action
         Animated.spring(translateX, {
           toValue: 100,
@@ -106,15 +95,6 @@ export default function SwipeableChatItem({
     }).start();
   };
 
-  const handleMute = () => {
-    resetPosition();
-    setShowWebActions(false);
-    if (isMuted) {
-      onUnmute();
-    } else {
-      onMute();
-    }
-  };
 
   const handleDelete = () => {
     console.log('Delete button clicked on web for chat:', chat.id);
@@ -157,21 +137,6 @@ export default function SwipeableChatItem({
 
   return (
     <View style={styles.container}>
-      {/* Left Background Actions (Mute) */}
-      <View style={styles.leftBackgroundActions}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.muteButton]}
-          onPress={handleMute}
-        >
-          <Text style={styles.actionButtonText}>
-            {isMuted ? '🔊' : '🔇'}
-          </Text>
-          <Text style={styles.actionButtonLabel}>
-            {isMuted ? 'Unmute' : 'Mute'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Right Background Actions (Delete/Leave) */}
       <View style={styles.rightBackgroundActions}>
         {(!isGroup || isUserAdmin) && (
@@ -179,10 +144,7 @@ export default function SwipeableChatItem({
             style={[styles.actionButton, styles.deleteButton]}
             onPress={handleDelete}
           >
-            <Text style={styles.actionButtonText}>🗑️</Text>
-            <Text style={styles.actionButtonLabel}>
-              {isGroup ? 'Delete' : 'Delete'}
-            </Text>
+            <Text style={styles.deleteButtonText}>✕</Text>
           </TouchableOpacity>
         )}
         
@@ -226,16 +188,11 @@ export default function SwipeableChatItem({
                   <Text style={styles.groupIndicatorText}>G</Text>
                 </View>
               )}
-              {isMuted && (
-                <View style={styles.mutedIndicator}>
-                  <Text style={styles.mutedIndicatorText}>🔇</Text>
-                </View>
-              )}
             </View>
             
             <View style={styles.chatInfo}>
               <View style={styles.chatHeader}>
-                <Text style={[styles.chatName, isMuted && styles.mutedText]}>
+                <Text style={styles.chatName}>
                   {displayName}
                 </Text>
                 {isGroup && (
@@ -245,20 +202,15 @@ export default function SwipeableChatItem({
                 )}
               </View>
               
-              <Text style={[styles.lastMessage, isMuted && styles.mutedText]} numberOfLines={1}>
+              <Text style={styles.lastMessage} numberOfLines={1}>
                 {chat.lastMessage?.text || t('noMessagesYet')}
               </Text>
             </View>
             
             <View style={styles.chatMeta}>
-              <Text style={[styles.timestamp, isMuted && styles.mutedText]}>
+              <Text style={styles.timestamp}>
                 {chat.lastMessageTime ? new Date(chat.lastMessageTime).toLocaleTimeString() : ''}
               </Text>
-              {isMuted && (
-                <View style={styles.mutedBadge}>
-                  <Text style={styles.mutedBadgeText}>MUTED</Text>
-                </View>
-              )}
             </View>
           </TouchableOpacity>
           
@@ -266,18 +218,6 @@ export default function SwipeableChatItem({
           {showWebActions && Platform.OS === 'web' && (
             <View style={styles.webActionButtons}>
               {console.log('Rendering web action buttons for chat:', chat.id, 'showWebActions:', showWebActions)}
-              <TouchableOpacity
-                style={[styles.webActionButton, styles.webMuteButton]}
-                onPress={handleMute}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.webActionButtonText}>
-                  {isMuted ? '🔊' : '🔇'}
-                </Text>
-                <Text style={styles.webActionButtonLabel}>
-                  {isMuted ? 'Unmute' : 'Mute'}
-                </Text>
-              </TouchableOpacity>
               
               {(!isGroup || isUserAdmin) && (
                 <TouchableOpacity
@@ -285,10 +225,7 @@ export default function SwipeableChatItem({
                   onPress={handleDelete}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.webActionButtonText}>🗑️</Text>
-                  <Text style={styles.webActionButtonLabel}>
-                    {isGroup ? 'Delete' : 'Delete'}
-                  </Text>
+                  <Text style={styles.webDeleteButtonText}>✕</Text>
                 </TouchableOpacity>
               )}
               
@@ -336,16 +273,11 @@ export default function SwipeableChatItem({
                     <Text style={styles.groupIndicatorText}>G</Text>
                   </View>
                 )}
-                {isMuted && (
-                  <View style={styles.mutedIndicator}>
-                    <Text style={styles.mutedIndicatorText}>🔇</Text>
-                  </View>
-                )}
               </View>
               
               <View style={styles.chatInfo}>
                 <View style={styles.chatHeader}>
-                  <Text style={[styles.chatName, isMuted && styles.mutedText]}>
+                  <Text style={styles.chatName}>
                     {displayName}
                   </Text>
                   {isGroup && (
@@ -355,20 +287,15 @@ export default function SwipeableChatItem({
                   )}
                 </View>
                 
-                <Text style={[styles.lastMessage, isMuted && styles.mutedText]} numberOfLines={1}>
+                <Text style={styles.lastMessage} numberOfLines={1}>
                   {chat.lastMessage?.text || t('noMessagesYet')}
                 </Text>
               </View>
               
               <View style={styles.chatMeta}>
-                <Text style={[styles.timestamp, isMuted && styles.mutedText]}>
+                <Text style={styles.timestamp}>
                   {chat.lastMessageTime ? new Date(chat.lastMessageTime).toLocaleTimeString() : ''}
                 </Text>
-                {isMuted && (
-                  <View style={styles.mutedBadge}>
-                    <Text style={styles.mutedBadgeText}>MUTED</Text>
-                  </View>
-                )}
               </View>
             </TouchableOpacity>
           </Animated.View>
@@ -382,16 +309,6 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
     overflow: 'hidden',
-  },
-  leftBackgroundActions: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 20,
-    width: 100,
   },
   rightBackgroundActions: {
     position: 'absolute',
@@ -412,9 +329,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginRight: 8,
   },
-  muteButton: {
-    backgroundColor: '#ff9500',
-  },
   deleteButton: {
     backgroundColor: '#ff3b30',
   },
@@ -424,6 +338,11 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 20,
     marginBottom: 2,
+  },
+  deleteButtonText: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   actionButtonLabel: {
     fontSize: 10,
@@ -481,20 +400,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#28a745',
   },
-  mutedIndicator: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    backgroundColor: '#ff9500',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mutedIndicatorText: {
-    fontSize: 8,
-  },
   chatInfo: {
     flex: 1,
   },
@@ -509,9 +414,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     flex: 1,
-  },
-  mutedText: {
-    opacity: 0.6,
   },
   participantCount: {
     fontSize: 12,
@@ -531,17 +433,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginBottom: 4,
-  },
-  mutedBadge: {
-    backgroundColor: '#ff9500',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  mutedBadgeText: {
-    fontSize: 8,
-    color: '#fff',
-    fontWeight: 'bold',
   },
   // Web-specific styles
   chatItemWithActions: {
@@ -571,9 +462,6 @@ const styles = StyleSheet.create({
     elevation: 5,
     cursor: 'pointer',
   },
-  webMuteButton: {
-    backgroundColor: '#ff9500',
-  },
   webDeleteButton: {
     backgroundColor: '#ff3b30',
   },
@@ -583,6 +471,11 @@ const styles = StyleSheet.create({
   webActionButtonText: {
     fontSize: 18,
     marginBottom: 2,
+  },
+  webDeleteButtonText: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   webActionButtonLabel: {
     fontSize: 10,
