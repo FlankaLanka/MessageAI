@@ -14,12 +14,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../../store/useStore';
-import { UserService } from '../../services/users';
-import { MediaService } from '../../services/media';
-import { AuthService } from '../../services/auth';
+import { UserService } from '../../api/users';
+import { MediaService } from '../../api/media';
+import { AuthService } from '../../api/auth';
 import { useLocalization } from '../../hooks/useLocalization';
 import LanguageSelector from '../../components/LanguageSelector';
-import { notificationService } from '../../services/notifications';
+import { notificationService } from '../../api/notifications';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isSmallScreen = screenHeight < 700;
@@ -160,8 +160,6 @@ export default function ProfileScreen() {
 
     try {
       setIsSaving(true);
-      console.log('Starting profile save for user:', user.uid);
-      console.log('Form data:', { firstName, lastName, phoneNumber, profilePicture });
       
       // Ensure user document exists (fallback for missing documents)
       await UserService.ensureUserDocumentExists(user.uid, user.email);
@@ -391,7 +389,6 @@ export default function ProfileScreen() {
   const attemptAccountDeletion = async (password?: string) => {
     try {
       setIsLoading(true);
-      console.log('Starting account deletion for user:', user!.uid);
       
       // Always require verification - no more time-based bypass
       const canUsePassword = AuthService.canReauthenticateWithPassword();
@@ -402,11 +399,9 @@ export default function ProfileScreen() {
         if (!password) {
           throw new Error('Password verification is required for account deletion');
         }
-        console.log('Re-authenticating user before deletion...');
         await AuthService.reauthenticateUser(password);
       } else if (currentUser?.emailVerified) {
         // Google Auth users must have verified email
-        console.log('Email verified, proceeding with deletion...');
       } else {
         throw new Error('Email verification is required for account deletion');
       }
@@ -415,7 +410,6 @@ export default function ProfileScreen() {
       
       // Delete from both Firebase Auth and Firestore
       await UserService.deleteUserAccount(user!.uid, currentAuthUser);
-      console.log('Account deleted successfully from both Firebase Auth and Firestore');
       
       // The user is now automatically signed out from Firebase Auth
       // The AuthService.onAuthStateChanged listener will handle the sign out

@@ -20,11 +20,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../../store/useStore';
 import { Message, User, Chat } from '../../types';
 import { useLocalization } from '../../hooks/useLocalization';
-import { MessageService } from '../../services/messages';
-import { UserService } from '../../services/users';
-import { GroupService } from '../../services/groups';
-import { useNetworkState } from '../../services/network';
-import { presenceService, TypingData } from '../../services/presence';
+import { MessageService } from '../../api/messages';
+import { UserService } from '../../api/users';
+import { GroupService } from '../../api/groups';
+import { useNetworkState } from '../../api/network';
+import { presenceService, TypingData } from '../../api/presence';
 import OnlineIndicator from '../../components/OnlineIndicator';
 import TypingIndicator from '../../components/TypingIndicator';
 import ProfileModal from '../../components/ProfileModal';
@@ -42,14 +42,14 @@ import { TranslationButton } from '../../components/TranslationButton';
 import { TranslatedMessageDisplay } from '../../components/TranslatedMessageDisplay';
 import { TranslationIndicator } from '../../components/TranslationIndicator';
 import { SmartSuggestions } from '../../components/SmartSuggestions';
-import { voiceTranslationService } from '../../services/voiceTranslation';
-import { ReadReceiptService, UserReadStatus } from '../../services/readReceipts';
-import { audioService } from '../../services/audio';
-import { supabaseVectorService } from '../../services/supabaseVector';
-import { ReactionService } from '../../services/reactions';
+import { voiceTranslationService } from '../../api/voiceTranslation';
+import { ReadReceiptService, UserReadStatus } from '../../api/readReceipts';
+import { audioService } from '../../api/audio';
+import { supabaseVectorService } from '../../api/supabaseVector';
+import { ReactionService } from '../../api/reactions';
 import { MessageReaction } from '../../types';
 import * as Haptics from 'expo-haptics';
-import { MediaService } from '../../services/media';
+import { MediaService } from '../../api/media';
 
 interface SimpleChatScreenProps {
   chatId: string;
@@ -162,8 +162,8 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
 
     try {
       // Import translation services
-      const { simpleTranslationService } = await import('../../services/simpleTranslation');
-      const { enhancedTranslationService } = await import('../../services/enhancedTranslation');
+      const { simpleTranslationService } = await import('../../api/simpleTranslation');
+      const { enhancedTranslationService } = await import('../../api/enhancedTranslation');
       
       // Filter messages that need translation (not from current user and not already translated)
       const messagesToTranslate = messages.filter(msg => 
@@ -184,7 +184,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         try {
           if (message.audioUrl && !message.text) {
             // Voice message - treat transcription exactly like regular text message
-            console.log('Auto-translating voice message:', message.id);
             
             // Create a text message from the transcription for translation
             const textMessage: Message = {
@@ -205,9 +204,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
                 }
               );
               
-              console.log('🎤 SimpleChatScreen - Voice translation result:');
-              console.log('  - result.intelligentProcessing:', result.intelligentProcessing);
-              console.log('  - result.culturalHints:', result.culturalHints);
               
               setMessageTranslations(prev => ({
                 ...prev,
@@ -452,7 +448,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           user.photoURL
         );
         
-        console.log(`Marked latest message as read: ${latestMessage.id}`);
       }
     } catch (error) {
       console.error('Error marking messages as read:', error);
@@ -484,10 +479,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           }
         } else if (currentChat.type === 'group') {
           // For group chat, load all participants
-          console.log('Loading group participants for chat:', currentChat.id);
-          console.log('Chat participants:', currentChat.participants);
           const participants = await UserService.getUsersByIds(currentChat.participants);
-          console.log('Loaded group participants:', participants);
           setGroupParticipants(participants);
         }
       }
@@ -527,7 +519,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
               senderName: user.displayName,
               timestamp: sentMessage.timestamp
             });
-            console.log('Stored image message text in Supabase Vector for RAG context');
           } catch (vectorError) {
             console.warn('Failed to store image message text in Supabase Vector:', vectorError);
             // Don't fail the message send if vector storage fails
@@ -559,7 +550,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             senderName: user.displayName,
             timestamp: sentMessage.timestamp
           });
-          console.log('Stored message in Supabase Vector for RAG context');
         } catch (vectorError) {
           console.warn('Failed to store message in Supabase Vector:', vectorError);
           // Don't fail the message send if vector storage fails
@@ -610,7 +600,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           messageId: sentMessage.id,
           isVoiceMessage: true
         });
-        console.log('Stored voice message placeholder in Supabase Vector for RAG context');
       } catch (vectorError) {
         console.warn('Failed to store voice message placeholder in Supabase Vector:', vectorError);
         // Don't fail the message send if vector storage fails
@@ -874,7 +863,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           <TouchableOpacity 
             style={styles.profileSection}
             onPress={() => {
-              console.log('Opening group modal with participants:', groupParticipants.length);
               setShowGroupModal(true);
             }}
           >
@@ -948,9 +936,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     
     // Debug: Log read receipts for group chats
     if (isGroupChat && readReceipts.length > 0) {
-      console.log(`Group chat - Message ${item.id} from ${senderName} has ${readReceipts.length} read receipts:`, 
-        readReceipts.map(r => r.userName)
-      );
+        // console.log('Read receipts:', readReceipts.map(r => r.userName));
     }
     
     return (
@@ -1002,7 +988,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
                   console.error('Image load error:', error);
                 }}
                 onLoad={() => {
-                  console.log('Image loaded successfully');
                 }}
               />
               
@@ -1217,7 +1202,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
               ]}
               onPress={() => {
                 // Trigger voice recording using the same logic as VoiceRecorder
-                const { audioService } = require('../../services/audio');
+                const { audioService } = require('../../api/audio');
                 if (isRecording) {
                   // Stop recording
                   audioService.stopRecording().then((result: any) => {

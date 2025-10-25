@@ -33,18 +33,11 @@ export const TranslatedMessageDisplay: React.FC<TranslatedMessageDisplayProps> =
   const { translationMode } = useStore();
   const [showDetails, setShowDetails] = useState(false);
   
-  console.log('🔤 TranslatedMessageDisplay - Debug:');
-  console.log('  - translationMode:', translationMode);
-  console.log('  - culturalHints.length:', culturalHints.length);
-  console.log('  - intelligentProcessing:', intelligentProcessing);
   
   const hasDetails = (translationMode === 'advanced' || translationMode === 'auto-advanced') && (culturalHints.length > 0 || intelligentProcessing);
   const hasCulturalHints = (translationMode === 'advanced' || translationMode === 'auto-advanced') && culturalHints.length > 0;
   const hasIntelligentProcessing = (translationMode === 'advanced' || translationMode === 'auto-advanced') && intelligentProcessing;
   
-  console.log('  - hasDetails:', hasDetails);
-  console.log('  - hasCulturalHints:', hasCulturalHints);
-  console.log('  - hasIntelligentProcessing:', hasIntelligentProcessing);
 
   return (
     <View style={[

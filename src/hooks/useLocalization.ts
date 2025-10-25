@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { localizationService, LocalizationStrings } from '../services/localization';
+import { localizationService, LocalizationStrings } from '../api/localization';
 import { useStore } from '../store/useStore';
 
 /**

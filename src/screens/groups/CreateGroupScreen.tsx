@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../store/useStore';
-import { GroupService } from '../../services/groups';
+import { GroupService } from '../../api/groups';
 import { User } from '../../types';
 import UserSearchModal from '../../components/UserSearchModal';
 import { useLocalization } from '../../hooks/useLocalization';

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { TypingData } from '../services/presence';
+import { TypingData } from '../api/presence';
 
 interface TypingIndicatorProps {
   typingUsers: TypingData[];

@@ -10,7 +10,7 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { audioService, AudioPlaybackStatus } from '../services/audio';
+import { audioService, AudioPlaybackStatus } from '../api/audio';
 
 interface VoiceMessagePreviewProps {
   visible: boolean;

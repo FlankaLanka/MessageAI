@@ -10,10 +10,10 @@ import {
   Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { audioService, AudioPlaybackStatus } from '../services/audio';
-import { MediaService } from '../services/media';
+import { audioService, AudioPlaybackStatus } from '../api/audio';
+import { MediaService } from '../api/media';
 import { Message, Translation } from '../types';
-import { simpleTranslationService } from '../services/simpleTranslation';
+import { simpleTranslationService } from '../api/simpleTranslation';
 import { useLocalization } from '../hooks/useLocalization';
 import { useStore } from '../store/useStore';
 import { TranslationButton } from './TranslationButton';
@@ -73,12 +73,6 @@ export default function VoiceMessageBubble({
   
   // Debug logging
   useEffect(() => {
-    console.log('🎤 VoiceMessageBubble Debug:');
-    console.log('  - message.transcription:', message?.transcription);
-    console.log('  - localTranscription:', localTranscription);
-    console.log('  - message.text:', message?.text);
-    console.log('  - message.id:', message?.id);
-    console.log('  - showTranscription:', showTranscription);
   }, [message?.transcription, localTranscription, message?.text, message?.id, showTranscription]);
   
   const { t } = useLocalization();
@@ -150,29 +144,19 @@ export default function VoiceMessageBubble({
   // Auto-transcribe voice message when component mounts
   useEffect(() => {
     const autoTranscribe = async () => {
-      console.log('🎤 Auto-transcription check:');
-      console.log('  - message exists:', !!message);
-      console.log('  - localTranscription exists:', !!localTranscription);
-      console.log('  - audioUrl exists:', !!message?.audioUrl);
       
       if (message && !localTranscription && message.audioUrl) {
         try {
-          console.log('🎤 Starting auto-transcription for message:', message.id);
-          const { voiceTranslationService } = await import('../services/voiceTranslation');
+          const { voiceTranslationService } = await import('../api/voiceTranslation');
           const result = await voiceTranslationService.transcribeVoiceMessage(message);
-          console.log('🎤 Auto-transcription completed for message:', message.id);
-          console.log('🎤 Transcription result:', result);
-          console.log('🎤 Transcription text:', result.text);
           
           // Update local transcription state
           setLocalTranscription(result.text);
-          console.log('🎤 Updated localTranscription to:', result.text);
         } catch (error) {
           console.error('🎤 Auto-transcription failed:', error);
           // Don't show error to user, just log it
         }
       } else {
-        console.log('🎤 Skipping auto-transcription - conditions not met');
       }
     };
 
@@ -189,14 +173,9 @@ export default function VoiceMessageBubble({
   // Update message object when transcription becomes available
   useEffect(() => {
     if (localTranscription && message && !message.text) {
-      console.log('🎤 VoiceMessageBubble - Updating message with transcription:');
-      console.log('  - localTranscription:', localTranscription);
-      console.log('  - message.text before:', message.text);
-      console.log('  - message.transcription:', message.transcription);
       
       // Update the message object to include the transcription as text
       message.text = localTranscription;
-      console.log('  - message.text after:', message.text);
     }
   }, [localTranscription, message]);
 
@@ -311,12 +290,6 @@ export default function VoiceMessageBubble({
           {/* Translation Button - same as text messages */}
           {message && localTranscription && !messageTranslations[message.id] && (
             <>
-              {console.log('🎤 VoiceMessageBubble - Creating TranslationButton:')}
-              {console.log('  - messageId:', message.id)}
-              {console.log('  - originalText (localTranscription):', localTranscription)}
-              {console.log('  - message.text:', message.text)}
-              {console.log('  - message.transcription:', message.transcription)}
-              {console.log('  - message object:', message)}
               <TranslationButton
                 messageId={message.id}
                 originalText={localTranscription}
@@ -338,7 +311,6 @@ export default function VoiceMessageBubble({
           <ReactionButton
             onPress={() => {
               // Handle reaction button press - same as text messages
-              console.log('Reaction button pressed for voice message:', message.id);
               onReactionPress?.(message.id);
             }}
             isOwn={isOwnMessage}

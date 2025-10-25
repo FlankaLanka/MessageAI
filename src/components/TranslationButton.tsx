@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { simpleTranslationService } from '../services/simpleTranslation';
-import { enhancedTranslationService } from '../services/enhancedTranslation';
+import { simpleTranslationService } from '../api/simpleTranslation';
+import { enhancedTranslationService } from '../api/enhancedTranslation';
 import { useLocalization } from '../hooks/useLocalization';
 import { useStore } from '../store/useStore';
 import { Message } from '../types';
@@ -32,11 +32,6 @@ export const TranslationButton: React.FC<TranslationButtonProps> = ({
   const handleTranslate = async () => {
     if (isTranslating) return;
 
-    console.log('🔤 TranslationButton - handleTranslate called:');
-    console.log('  - messageId:', messageId);
-    console.log('  - originalText:', originalText);
-    console.log('  - message:', message);
-    console.log('  - chatMessages length:', chatMessages.length);
 
     setIsTranslating(true);
     setError(null);
@@ -57,11 +52,6 @@ export const TranslationButton: React.FC<TranslationButtonProps> = ({
             }
           );
 
-          console.log('🔤 TranslationButton - Enhanced translation result:');
-          console.log('  - translation:', result.translation);
-          console.log('  - culturalHints:', result.culturalHints);
-          console.log('  - intelligentProcessing:', result.intelligentProcessing);
-          console.log('  - method:', result.method);
           
           onTranslationComplete(
             messageId, 

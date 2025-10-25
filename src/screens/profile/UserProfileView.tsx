@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from '../../types';
-import { UserService } from '../../services/users';
+import { UserService } from '../../api/users';
 import { useLocalization } from '../../hooks/useLocalization';
 import OnlineIndicator from '../../components/OnlineIndicator';
-import { presenceService } from '../../services/presence';
+import { presenceService } from '../../api/presence';
 
 interface UserProfileViewProps {
   userId: string;
@@ -69,7 +69,6 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
             setIsOnline(currentPresence.state === 'online');
           }
         } catch (presenceError) {
-          console.log('Could not get real-time presence, using profile status:', presenceError);
         }
       }
     } catch (error) {

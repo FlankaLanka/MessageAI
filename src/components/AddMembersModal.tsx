@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from '../types';
-import { UserService } from '../services/users';
-import { GroupService } from '../services/groups';
+import { UserService } from '../api/users';
+import { GroupService } from '../api/groups';
 import { useLocalization } from '../hooks/useLocalization';
 
 interface AddMembersModalProps {

@@ -14,9 +14,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalization } from '../hooks/useLocalization';
 import { useStore } from '../store/useStore';
-import { availableLanguages } from '../services/localization';
-import { UserService } from '../services/users';
-import { simpleTranslationService } from '../services/simpleTranslation';
+import { availableLanguages } from '../api/localization';
+import { UserService } from '../api/users';
+import { simpleTranslationService } from '../api/simpleTranslation';
 
 interface LanguageSelectorProps {
   visible: boolean;
@@ -77,7 +77,6 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
       // Clear translation cache when language changes
       // Different target languages will produce different translations
       await clearTranslationCache();
-      console.log('🧹 Cleared translation cache due to language change:', languageCode);
       
       // Update translation language
       setDefaultTranslationLanguage(languageCode);
@@ -119,7 +118,6 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
       // Clear translation cache when mode changes
       // Different modes may produce different results (e.g., advanced vs simple)
       await clearTranslationCache();
-      console.log('🧹 Cleared translation cache due to mode change:', mode);
       
       // Update translation mode
       setTranslationMode(mode);
@@ -163,7 +161,6 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
             try {
               // Actually clear the translation cache
               await clearTranslationCache();
-              console.log('🧹 Translation cache cleared manually by user');
               Alert.alert(t('success'), t('clearCacheSuccess'));
             } catch (error) {
               console.error('Error clearing translation cache:', error);

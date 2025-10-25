@@ -11,7 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AuthService } from '../../services/auth';
+import { AuthService } from '../../api/auth';
 import { useStore } from '../../store/useStore';
 import { useLocalization } from '../../hooks/useLocalization';
 import { showErrorAlert, showSuccessAlert } from '../../utils/crossPlatformAlert';
@@ -46,7 +46,6 @@ export default function AuthScreen() {
     setIsLoading(true);
     try {
       const user = await AuthService.signInWithEmail(signInEmail, signInPassword);
-      console.log('✅ Login successful');
       // Auth state will be handled by App.tsx
     } catch (error: any) {
       console.error('❌ Login failed:', error);
@@ -88,7 +87,6 @@ export default function AuthScreen() {
         firstName, 
         lastName
       );
-      console.log('✅ Account created successfully');
       showSuccessAlert('Account created successfully! You are now logged in.');
     } catch (error: any) {
       console.error('❌ Sign up failed:', error);
@@ -110,7 +108,6 @@ export default function AuthScreen() {
     setIsLoading(true);
     try {
       const user = await AuthService.signInWithGoogle();
-      console.log('✅ Google sign in successful');
     } catch (error: any) {
       console.error('❌ Google sign in failed:', error);
       showErrorAlert(error.message);

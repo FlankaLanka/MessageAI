@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SmartSuggestion, smartSuggestionsService } from '../services/smartSuggestions';
+import { SmartSuggestion, smartSuggestionsService } from '../api/smartSuggestions';
 import { Message } from '../types';
 import { useLocalization } from '../hooks/useLocalization';
 import { useStore } from '../store/useStore';
@@ -106,13 +106,6 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
         otherUserLanguage,
         isDirectChat
       };
-
-      console.log('SmartSuggestions Component Debug:', {
-        userLanguage,
-        otherUserLanguage,
-        isDirectChat,
-        context
-      });
       
       // For 1-on-1 chats: use other language setting
       // For group chats: always use user language only
@@ -123,7 +116,6 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
         smartSuggestionsUseRAG, 
         shouldIncludeOtherLanguage
       );
-      console.log('Generated suggestions:', newSuggestions);
       setSuggestions(newSuggestions.slice(0, 3));
     } catch (error) {
       console.error('Failed to load suggestions:', error);

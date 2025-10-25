@@ -10,7 +10,7 @@ import {
   Vibration
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { audioService, AudioRecording } from '../services/audio';
+import { audioService, AudioRecording } from '../api/audio';
 
 interface VoiceRecorderProps {
   onRecordingComplete: (audioUri: string, duration: number) => void;
@@ -76,7 +76,6 @@ export default function VoiceRecorder({
         Vibration.vibrate(50);
       }
 
-      console.log('Recording started');
     } catch (error) {
       console.error('Error starting recording:', error);
       Alert.alert('Error', 'Failed to start recording. Please try again.');
@@ -114,7 +113,6 @@ export default function VoiceRecorder({
         Vibration.vibrate(50);
       }
 
-      console.log('Recording stopped');
     } catch (error) {
       console.error('Error stopping recording:', error);
       Alert.alert('Error', 'Failed to stop recording. Please try again.');
@@ -142,7 +140,6 @@ export default function VoiceRecorder({
       }
 
       onRecordingCancel();
-      console.log('Recording cancelled');
     } catch (error) {
       console.error('Error cancelling recording:', error);
     }

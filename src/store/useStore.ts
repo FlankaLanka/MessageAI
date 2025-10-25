@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { User, Message, Chat, Group, Translation, CulturalHint } from '../types';
-import { localizationService } from '../services/localization';
-import { UserService } from '../services/users';
+import { localizationService } from '../api/localization';
+import { UserService } from '../api/users';
 
 interface AppState {
   // User state
@@ -99,53 +99,37 @@ export const useStore = create<AppState>((set) => ({
   
   // Actions
   setUser: (user) => {
-    console.log('Store: Setting user with language preference:', user?.defaultLanguage);
-    console.log('Store: User settings:', {
-      translationCacheEnabled: user?.translationCacheEnabled,
-      smartSuggestionsUseRAG: user?.smartSuggestionsUseRAG,
-      smartSuggestionsIncludeOtherLanguage: user?.smartSuggestionsIncludeOtherLanguage
-    });
     set({ user });
     // Update localization service with user's language preference
     localizationService.setUser(user);
     
     // Update translation language to match user's language preference
     if (user?.defaultLanguage) {
-      console.log('Store: Setting defaultTranslationLanguage to:', user.defaultLanguage);
       set({ defaultTranslationLanguage: user.defaultLanguage });
     } else {
-      console.log('Store: No defaultLanguage found in user profile');
     }
     
     // Update translation mode from user profile
     if (user?.translationMode) {
-      console.log('Store: Setting translationMode to:', user.translationMode);
       set({ translationMode: user.translationMode });
     } else {
-      console.log('Store: No translationMode found in user profile, using default');
     }
     
     // Update translation cache setting from user's preference
     if (user?.translationCacheEnabled !== undefined) {
-      console.log('Store: Setting translationCacheEnabled to:', user.translationCacheEnabled);
       set({ translationCacheEnabled: user.translationCacheEnabled });
     } else {
-      console.log('Store: translationCacheEnabled not provided, keeping current value');
     }
     
     // Update smart suggestions settings from user's preferences
     if (user?.smartSuggestionsUseRAG !== undefined) {
-      console.log('Store: Setting smartSuggestionsUseRAG to:', user.smartSuggestionsUseRAG);
       set({ smartSuggestionsUseRAG: user.smartSuggestionsUseRAG });
     } else {
-      console.log('Store: smartSuggestionsUseRAG not provided, keeping current value');
     }
     
     if (user?.smartSuggestionsIncludeOtherLanguage !== undefined) {
-      console.log('Store: Setting smartSuggestionsIncludeOtherLanguage to:', user.smartSuggestionsIncludeOtherLanguage);
       set({ smartSuggestionsIncludeOtherLanguage: user.smartSuggestionsIncludeOtherLanguage });
     } else {
-      console.log('Store: smartSuggestionsIncludeOtherLanguage not provided, keeping current value');
     }
   },
   setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
@@ -305,9 +289,7 @@ export const useStore = create<AppState>((set) => ({
     const { user } = useStore.getState();
     if (user) {
       try {
-        console.log('Store: Attempting to sync translationCacheEnabled to database:', enabled, 'for user:', user.uid);
         await UserService.updateUserProfile(user.uid, { translationCacheEnabled: enabled });
-        console.log('Store: Successfully synced translationCacheEnabled to database:', enabled);
       } catch (error) {
         console.error('Store: Failed to sync translationCacheEnabled to database:', error);
         console.error('Store: Error details:', {
@@ -322,9 +304,7 @@ export const useStore = create<AppState>((set) => ({
   },
   
   clearTranslationCache: async () => {
-    console.log('🧹 Clearing translation cache...');
     const beforeSize = useStore.getState().translationCache.size;
-    console.log('🧹 Cache size before clear:', beforeSize);
     
     try {
       // Clear in-memory cache
@@ -336,25 +316,21 @@ export const useStore = create<AppState>((set) => ({
       
       // Clear SQLite cache for cultural hints
       try {
-        const { culturalHintsService } = await import('../services/culturalHints');
+        const { culturalHintsService } = await import('../api/culturalHints');
         await culturalHintsService.clearExpiredCache();
-        console.log('🧹 SQLite cultural hints cache cleared');
       } catch (error) {
         console.warn('Failed to clear SQLite cultural hints cache:', error);
       }
       
       // Clear enhanced translation service cache
       try {
-        const { enhancedTranslationService } = await import('../services/enhancedTranslation');
+        const { enhancedTranslationService } = await import('../api/enhancedTranslation');
         await enhancedTranslationService.clearCache();
-        console.log('🧹 Enhanced translation service cache cleared');
       } catch (error) {
         console.warn('Failed to clear enhanced translation service cache:', error);
       }
       
       const afterSize = useStore.getState().translationCache.size;
-      console.log('🧹 Cache size after clear:', afterSize);
-      console.log('🧹 Translation cache cleared successfully');
     } catch (error) {
       console.error('Error clearing translation cache:', error);
       throw error;
@@ -369,9 +345,7 @@ export const useStore = create<AppState>((set) => ({
     const { user } = useStore.getState();
     if (user) {
       try {
-        console.log('Store: Attempting to sync smartSuggestionsUseRAG to database:', useRAG, 'for user:', user.uid);
         await UserService.updateUserProfile(user.uid, { smartSuggestionsUseRAG: useRAG });
-        console.log('Store: Successfully synced smartSuggestionsUseRAG to database:', useRAG);
       } catch (error) {
         console.error('Store: Failed to sync smartSuggestionsUseRAG to database:', error);
         console.error('Store: Error details:', {
@@ -392,9 +366,7 @@ export const useStore = create<AppState>((set) => ({
     const { user } = useStore.getState();
     if (user) {
       try {
-        console.log('Store: Attempting to sync smartSuggestionsIncludeOtherLanguage to database:', includeOtherLanguage, 'for user:', user.uid);
         await UserService.updateUserProfile(user.uid, { smartSuggestionsIncludeOtherLanguage: includeOtherLanguage });
-        console.log('Store: Successfully synced smartSuggestionsIncludeOtherLanguage to database:', includeOtherLanguage);
       } catch (error) {
         console.error('Store: Failed to sync smartSuggestionsIncludeOtherLanguage to database:', error);
         console.error('Store: Error details:', {

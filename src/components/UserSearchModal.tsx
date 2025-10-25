@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from '../types';
-import { UserService } from '../services/users';
-import { presenceService } from '../services/presence';
+import { UserService } from '../api/users';
+import { presenceService } from '../api/presence';
 import { useStore } from '../store/useStore';
 import { useLocalization } from '../hooks/useLocalization';
 import OnlineIndicator from './OnlineIndicator';
@@ -60,11 +60,9 @@ export default function UserSearchModal({
 
     setIsSearching(true);
     try {
-      console.log('Searching for users with query:', searchQuery);
       
       // Search for users by email or name, excluding current user
       const users = await UserService.searchUsers(user?.uid || '', searchQuery.trim());
-      console.log('Search results:', users);
       
       setSearchResults(users);
       

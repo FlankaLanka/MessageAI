@@ -40,7 +40,6 @@ export class RetryHandler {
           opts.maxDelay
         );
 
-        console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
         await this.delay(delay);
       }
     }

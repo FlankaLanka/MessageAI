@@ -13,15 +13,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../../store/useStore';
 import { useLocalization } from '../../hooks/useLocalization';
-import { AuthService } from '../../services/auth';
-import { MessageService } from '../../services/messages';
-import { DirectChatService } from '../../services/directChat';
-import { notificationService } from '../../services/notifications';
+import { AuthService } from '../../api/auth';
+import { MessageService } from '../../api/messages';
+import { DirectChatService } from '../../api/directChat';
+import { notificationService } from '../../api/notifications';
 import { Chat, User } from '../../types';
 import SwipeableChatItem from '../../components/SwipeableChatItem';
 import UserSearchModal from '../../components/UserSearchModal';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { firestore } from '../../services/firebase';
+import { firestore } from '../../api/firebase';
 import { showAlert, showErrorAlert, showSuccessAlert, showDeleteConfirmAlert, showLeaveConfirmAlert } from '../../utils/crossPlatformAlert';
 
 interface ChatListScreenProps {
@@ -133,7 +133,6 @@ export default function ChatListScreen({ onNavigateToChat, onNavigateToCreateGro
     if (!user) return;
 
     try {
-      console.log('Starting direct chat with:', selectedUser.displayName);
       
       // Create or find existing direct chat
       const chatId = await DirectChatService.createDirectChat(user.uid, selectedUser.uid);
@@ -144,7 +143,6 @@ export default function ChatListScreen({ onNavigateToChat, onNavigateToCreateGro
       // Close the user search modal
       setShowUserSearch(false);
       
-      console.log('Direct chat started successfully');
     } catch (error) {
       console.error('Error starting direct chat:', error);
       showErrorAlert('Failed to start chat. Please try again.');
@@ -155,28 +153,22 @@ export default function ChatListScreen({ onNavigateToChat, onNavigateToCreateGro
   const handleDeleteChat = async (chat: Chat) => {
     if (!user) return;
 
-    console.log('Delete chat button clicked for chat:', chat.id, 'Type:', chat.type);
     
     const isGroup = chat.type === 'group';
     const itemType = isGroup ? 'Group' : 'Chat';
     
     const performDelete = async () => {
-      console.log('Delete confirmed, proceeding with deletion...');
       try {
         // Delete the chat (works for both direct and group chats)
-        console.log('Calling MessageService.deleteChat...');
         await MessageService.deleteChat(chat.id, user.uid);
-        console.log('Chat deleted successfully from Firestore');
 
         // Refresh chats
-        console.log('Refreshing chat list...');
         const allChats = await MessageService.getUserChats(user.uid);
         const sortedChats = allChats.sort((a, b) => 
           (b.lastMessageTime || b.updatedAt) - (a.lastMessageTime || a.updatedAt)
         );
 
         setChats(sortedChats);
-        console.log('Chat list updated, showing success alert');
         
         showSuccessAlert(`${itemType} deleted successfully`);
       } catch (error: any) {

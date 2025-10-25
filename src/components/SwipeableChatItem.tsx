@@ -12,7 +12,7 @@ import {
 import { PanGestureHandler, State, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 import { Chat, User } from '../types';
 import { useLocalization } from '../hooks/useLocalization';
-import { DirectChatService } from '../services/directChat';
+import { DirectChatService } from '../api/directChat';
 
 interface SwipeableChatItemProps {
   chat: Chat;
@@ -97,16 +97,12 @@ export default function SwipeableChatItem({
 
 
   const handleDelete = () => {
-    console.log('Delete button clicked on web for chat:', chat.id);
-    console.log('Chat type:', chat.type, 'Is group:', isGroup, 'Is user admin:', isUserAdmin);
     resetPosition();
     setShowWebActions(false);
-    console.log('Calling onDelete prop...');
     onDelete();
   };
 
   const handleLeave = () => {
-    console.log('Leave button clicked on web');
     resetPosition();
     setShowWebActions(false);
     onLeave();
@@ -122,15 +118,12 @@ export default function SwipeableChatItem({
 
   const handleWebMouseEnter = () => {
     if (Platform.OS === 'web') {
-      console.log('Mouse entered chat item on web for chat:', chat.id);
-      console.log('Setting showWebActions to true');
       setShowWebActions(true);
     }
   };
 
   const handleWebMouseLeave = () => {
     if (Platform.OS === 'web') {
-      console.log('Mouse left chat item on web');
       setShowWebActions(false);
     }
   };
@@ -216,7 +209,6 @@ export default function SwipeableChatItem({
           {/* Web Action Buttons */}
           {showWebActions && Platform.OS === 'web' && (
             <View style={styles.webActionButtons}>
-              {console.log('Rendering web action buttons for chat:', chat.id, 'showWebActions:', showWebActions)}
               
               {(!isGroup || isUserAdmin) && (
                 <TouchableOpacity

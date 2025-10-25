@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet, Alert, Platform, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MediaService } from '../services/media';
+import { MediaService } from '../api/media';
 
 interface ImagePickerButtonProps {
   onImageSelected: (imageUri: string) => void;

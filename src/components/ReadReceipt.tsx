@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
-import { ReadReceipt as ReadReceiptType } from '../services/readReceipts';
+import { ReadReceipt as ReadReceiptType } from '../api/readReceipts';
 
 interface ReadReceiptProps {
   readReceipts: ReadReceiptType[];
