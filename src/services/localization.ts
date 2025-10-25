@@ -193,7 +193,16 @@ export interface LocalizationStrings {
   // Translation Cache
   translationCache: string;
   translationCacheDescription: string;
+  
   // Smart Suggestions
+  useRAGContext: string;
+  useRAGContextDescription: string;
+  useRAGContextDescriptionEnabled: string;
+  useRAGContextDescriptionDisabled: string;
+  includeOtherLanguage: string;
+  includeOtherLanguageDescription: string;
+  includeOtherLanguageDescriptionEnabled: string;
+  includeOtherLanguageDescriptionDisabled: string;
   backToKeyboard: string;
 }
 
@@ -396,7 +405,16 @@ const en: LocalizationStrings = {
   // Translation Cache
   translationCache: 'Translation Cache',
   translationCacheDescription: 'Store translations to speed up repeated text',
+  
   // Smart Suggestions
+  useRAGContext: 'Use RAG Context',
+  useRAGContextDescription: 'Choose between historical context or recent messages',
+  useRAGContextDescriptionEnabled: 'Uses historical conversation context (slower but smarter)',
+  useRAGContextDescriptionDisabled: 'Uses recent messages only (faster but less context)',
+  includeOtherLanguage: 'Include Other Language',
+  includeOtherLanguageDescription: 'Show suggestions in multiple languages',
+  includeOtherLanguageDescriptionEnabled: 'Shows suggestions in both your language and theirs',
+  includeOtherLanguageDescriptionDisabled: 'Shows suggestions only in your language',
   backToKeyboard: 'Back to Keyboard',
 };
 
@@ -599,7 +617,16 @@ const es: LocalizationStrings = {
   // Translation Cache
   translationCache: 'Caché de Traducción',
   translationCacheDescription: 'Almacenar traducciones para acelerar texto repetido',
+  
   // Smart Suggestions
+  useRAGContext: 'Usar Contexto RAG',
+  useRAGContextDescription: 'Elegir entre contexto histórico o mensajes recientes',
+  useRAGContextDescriptionEnabled: 'Usa contexto histórico de conversación (más lento pero más inteligente)',
+  useRAGContextDescriptionDisabled: 'Usa solo mensajes recientes (más rápido pero menos contexto)',
+  includeOtherLanguage: 'Incluir Otro Idioma',
+  includeOtherLanguageDescription: 'Mostrar sugerencias en múltiples idiomas',
+  includeOtherLanguageDescriptionEnabled: 'Muestra sugerencias en tu idioma y el de ellos',
+  includeOtherLanguageDescriptionDisabled: 'Muestra sugerencias solo en tu idioma',
   backToKeyboard: 'Volver al Teclado',
 };
 
@@ -802,7 +829,16 @@ const zh: LocalizationStrings = {
   // Translation Cache
   translationCache: '翻译缓存',
   translationCacheDescription: '存储翻译以加速重复文本',
+  
   // Smart Suggestions
+  useRAGContext: '使用RAG上下文',
+  useRAGContextDescription: '选择历史上下文或最近消息',
+  useRAGContextDescriptionEnabled: '使用历史对话上下文（较慢但更智能）',
+  useRAGContextDescriptionDisabled: '仅使用最近消息（更快但上下文较少）',
+  includeOtherLanguage: '包含其他语言',
+  includeOtherLanguageDescription: '以多种语言显示建议',
+  includeOtherLanguageDescriptionEnabled: '显示您和他们的语言建议',
+  includeOtherLanguageDescriptionDisabled: '仅显示您语言的建议',
   backToKeyboard: '返回键盘',
 };
 

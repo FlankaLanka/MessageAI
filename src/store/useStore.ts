@@ -271,11 +271,45 @@ export const useStore = create<AppState>((set) => ({
     return { translationCacheEnabled: enabled };
   }),
   
-  clearTranslationCache: () => set({
-    translationCache: new Map(),
-    culturalHintCache: new Map(),
-    intelligentProcessingCache: new Map()
-  }),
+  clearTranslationCache: async () => {
+    console.log('🧹 Clearing translation cache...');
+    const beforeSize = useStore.getState().translationCache.size;
+    console.log('🧹 Cache size before clear:', beforeSize);
+    
+    try {
+      // Clear in-memory cache
+      set({
+        translationCache: new Map(),
+        culturalHintCache: new Map(),
+        intelligentProcessingCache: new Map()
+      });
+      
+      // Clear SQLite cache for cultural hints
+      try {
+        const { culturalHintsService } = await import('../services/culturalHints');
+        await culturalHintsService.clearExpiredCache();
+        console.log('🧹 SQLite cultural hints cache cleared');
+      } catch (error) {
+        console.warn('Failed to clear SQLite cultural hints cache:', error);
+      }
+      
+      // Clear enhanced translation service cache
+      try {
+        const { enhancedTranslationService } = await import('../services/enhancedTranslation');
+        await enhancedTranslationService.clearCache();
+        console.log('🧹 Enhanced translation service cache cleared');
+      } catch (error) {
+        console.warn('Failed to clear enhanced translation service cache:', error);
+      }
+      
+      const afterSize = useStore.getState().translationCache.size;
+      console.log('🧹 Cache size after clear:', afterSize);
+      console.log('🧹 Translation cache cleared successfully');
+    } catch (error) {
+      console.error('Error clearing translation cache:', error);
+      throw error;
+    }
+  },
   
   // Smart Suggestions actions
   setSmartSuggestionsUseRAG: (useRAG) => set({ smartSuggestionsUseRAG: useRAG }),

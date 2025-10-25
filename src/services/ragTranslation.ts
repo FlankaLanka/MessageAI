@@ -71,7 +71,8 @@ class RAGTranslationService {
 
     // Check cache first
     const store = useStore.getState();
-    const textHash = this.createTextHash(userMessage);
+    const currentTranslationMode = store.translationMode;
+    const textHash = this.createTextHash(userMessage, currentTranslationMode);
     const cachedTranslation = store.getCachedTranslation(textHash, userPreferences.target_language);
     const cachedHints = store.getCachedCulturalHints(textHash);
     const cachedProcessing = store.getCachedIntelligentProcessing(textHash);
@@ -771,12 +772,16 @@ IMPORTANT: Write all explanations in the user's interface language: ${this.getUs
 
   /**
    * Create a hash for text to use as cache key
+   * Includes translation mode to ensure different modes have separate cache entries
    */
-  private createTextHash(text: string): string {
+  private createTextHash(text: string, translationMode?: string): string {
+    // Include translation mode in hash to separate cache entries by mode
+    const textWithMode = translationMode ? `${text}|${translationMode}` : text;
+    
     // Simple hash function for text
     let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      const char = text.charCodeAt(i);
+    for (let i = 0; i < textWithMode.length; i++) {
+      const char = textWithMode.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }

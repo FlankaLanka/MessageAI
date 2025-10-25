@@ -64,20 +64,29 @@ class EnhancedTranslationService {
     // For voice messages, use transcription; for text messages, use text
     const messageText = message.transcription || message.text || '';
     console.log('🔤 Using messageText:', messageText);
-    const textHash = this.createTextHash(messageText);
+    
+    // Get current translation mode for cache key
+    const currentTranslationMode = store.translationMode;
+    const textHash = this.createTextHash(messageText, currentTranslationMode);
     const cachedTranslation = store.getCachedTranslation(textHash, targetLanguage);
     const cachedHints = store.getCachedCulturalHints(textHash);
     const cachedProcessing = store.getCachedIntelligentProcessing(textHash);
     
-    if (cachedTranslation && cachedHints && cachedProcessing) {
-      console.log('Using cached enhanced translation for:', messageText.substring(0, 50));
+    // Use cached data if available (flexible validation)
+    if (cachedTranslation) {
+      console.log('🧠 Using cached enhanced translation for:', messageText.substring(0, 50));
+      console.log('🧠 Cache key includes translation mode:', currentTranslationMode);
+      console.log('🧠 Cached translation:', cachedTranslation.text.substring(0, 50));
+      console.log('🧠 Cache hit - no new API call needed');
       return {
         translation: cachedTranslation.text,
-        culturalHints: cachedHints,
-        intelligentProcessing: cachedProcessing,
+        culturalHints: cachedHints || [],
+        intelligentProcessing: cachedProcessing || null,
         method: 'rag',
         contextUsed: []
       };
+    } else {
+      console.log('🔄 No cached translation found - will generate new translation');
     }
     
     try {
@@ -127,6 +136,7 @@ class EnhancedTranslationService {
             };
             
             // Cache the result
+            console.log('💾 Caching new RAG translation for mode:', currentTranslationMode);
             store.cacheTranslation(textHash, targetLanguage, {
               text: ragResult.translation,
               lang: targetLanguage
@@ -156,6 +166,7 @@ class EnhancedTranslationService {
           };
           
           // Cache the result
+          console.log('💾 Caching new simple translation for mode:', currentTranslationMode);
           store.cacheTranslation(textHash, targetLanguage, {
             text: simpleResult.translation,
             lang: targetLanguage
@@ -360,12 +371,16 @@ class EnhancedTranslationService {
 
   /**
    * Create a hash for text to use as cache key
+   * Includes translation mode to ensure different modes have separate cache entries
    */
-  private createTextHash(text: string): string {
+  private createTextHash(text: string, translationMode?: string): string {
+    // Include translation mode in hash to separate cache entries by mode
+    const textWithMode = translationMode ? `${text}|${translationMode}` : text;
+    
     // Simple hash function for text
     let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      const char = text.charCodeAt(i);
+    for (let i = 0; i < textWithMode.length; i++) {
+      const char = textWithMode.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }

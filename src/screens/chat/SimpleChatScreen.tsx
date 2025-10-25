@@ -49,6 +49,7 @@ import { supabaseVectorService } from '../../services/supabaseVector';
 import { ReactionService } from '../../services/reactions';
 import { MessageReaction } from '../../types';
 import * as Haptics from 'expo-haptics';
+import { MediaService } from '../../services/media';
 
 interface SimpleChatScreenProps {
   chatId: string;
@@ -94,6 +95,9 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  
+  // Image selection state
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const waveAnimations = useRef([
     new Animated.Value(0.3),
     new Animated.Value(0.3),
@@ -138,8 +142,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   
-  // Image message state
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
   // Reaction state
   const [messageReactions, setMessageReactions] = useState<Record<string, MessageReaction[]>>({});
@@ -1143,16 +1145,15 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           <View style={styles.topButtonRow}>
             <TouchableOpacity 
               style={styles.topButton}
-              onPress={() => {
-                // Trigger image picker using the same logic as ImagePickerButton
-                const { MediaService } = require('../../services/media');
-                MediaService.pickImage().then((result: any) => {
-                  if (result && result.uri) {
-                    handleImageSelected(result.uri);
+              onPress={async () => {
+                try {
+                  const result = await MediaService.pickImage();
+                  if (result) {
+                    handleImageSelected(result);
                   }
-                }).catch((error: any) => {
+                } catch (error) {
                   console.error('Error picking image:', error);
-                });
+                }
               }}
             >
               <Ionicons name="camera" size={20} color="#8E8E93" />

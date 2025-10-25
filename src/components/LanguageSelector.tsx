@@ -74,6 +74,11 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
 
     setIsUpdating(true);
     try {
+      // Clear translation cache when language changes
+      // Different target languages will produce different translations
+      await clearTranslationCache();
+      console.log('🧹 Cleared translation cache due to language change:', languageCode);
+      
       // Update translation language
       setDefaultTranslationLanguage(languageCode);
       
@@ -106,6 +111,11 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
 
     setIsUpdating(true);
     try {
+      // Clear translation cache when mode changes
+      // Different modes may produce different results (e.g., advanced vs simple)
+      await clearTranslationCache();
+      console.log('🧹 Cleared translation cache due to mode change:', mode);
+      
       // Update translation mode
       setTranslationMode(mode);
       
@@ -141,9 +151,12 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
           style: 'destructive',
           onPress: async () => {
             try {
-              // For now, just show success - cache clearing can be implemented later
+              // Actually clear the translation cache
+              await clearTranslationCache();
+              console.log('🧹 Translation cache cleared manually by user');
               Alert.alert(t('success'), t('clearCacheSuccess'));
             } catch (error) {
+              console.error('Error clearing translation cache:', error);
               Alert.alert(t('error'), t('clearCacheError'));
             }
           }
@@ -271,16 +284,16 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
 
           {/* Smart Suggestions Settings */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>💡 Smart Suggestions</Text>
+            <Text style={styles.sectionTitle}>{t('smartSuggestions')}</Text>
             
             {/* RAG vs Recent Messages toggle */}
             <View style={styles.settingItem}>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Use RAG Context</Text>
+                <Text style={styles.settingTitle}>{t('useRAGContext')}</Text>
                 <Text style={styles.settingDescription}>
                   {smartSuggestionsUseRAG 
-                    ? 'Uses historical conversation context (slower but smarter)'
-                    : 'Uses recent messages only (faster but less context)'
+                    ? t('useRAGContextDescriptionEnabled')
+                    : t('useRAGContextDescriptionDisabled')
                   }
                 </Text>
               </View>
@@ -296,11 +309,11 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
             {/* Include other language toggle */}
             <View style={styles.settingItem}>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Include Other Language</Text>
+                <Text style={styles.settingTitle}>{t('includeOtherLanguage')}</Text>
                 <Text style={styles.settingDescription}>
                   {smartSuggestionsIncludeOtherLanguage 
-                    ? 'Shows suggestions in both your language and theirs'
-                    : 'Shows suggestions only in your language'
+                    ? t('includeOtherLanguageDescriptionEnabled')
+                    : t('includeOtherLanguageDescriptionDisabled')
                   }
                 </Text>
               </View>

@@ -34,7 +34,7 @@ interface VoiceMessageBubbleProps {
   senderPhotoURL?: string;
   chatMessages?: Message[]; // For RAG context
   messageTranslations?: { [messageId: string]: any }; // Translation state
-  onTranslationComplete?: (messageId: string, translation: any) => void; // Translation callback
+  onTranslationComplete?: (messageId: string, translation: string, language: string, culturalHints?: any[], intelligentProcessing?: any) => void; // Translation callback
   onCloseTranslation?: (messageId: string) => void; // Close translation callback
 }
 

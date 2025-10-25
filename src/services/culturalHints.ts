@@ -21,10 +21,12 @@ class CulturalHintsService {
     language: string,
     forceRefresh: boolean = false
   ): Promise<CulturalHint[]> {
-    const cacheKey = this.getCacheKey(text, language);
+    // Include translation mode in cache key
+    const store = useStore.getState();
+    const translationMode = store.translationMode;
+    const cacheKey = this.getCacheKey(text, language, translationMode);
     
     // Check global cache first
-    const store = useStore.getState();
     const globalCached = store.getCachedCulturalHints(cacheKey);
     if (globalCached && !forceRefresh) {
       console.log('Using global cached cultural hints for:', text.substring(0, 50));
@@ -74,10 +76,12 @@ class CulturalHintsService {
     language: string,
     hints: CulturalHint[]
   ): Promise<void> {
-    const cacheKey = this.getCacheKey(text, language);
+    // Include translation mode in cache key
+    const store = useStore.getState();
+    const translationMode = store.translationMode;
+    const cacheKey = this.getCacheKey(text, language, translationMode);
     
     // Update global cache
-    const store = useStore.getState();
     store.cacheCulturalHints(cacheKey, hints);
     
     // Update memory cache
@@ -143,8 +147,9 @@ class CulturalHintsService {
   /**
    * Create cache key for text and language
    */
-  private getCacheKey(text: string, language: string): string {
-    return `${language}:${text.toLowerCase().trim()}`;
+  private getCacheKey(text: string, language: string, translationMode?: string): string {
+    const mode = translationMode ? `|${translationMode}` : '';
+    return `${language}:${text.toLowerCase().trim()}${mode}`;
   }
 
   /**
