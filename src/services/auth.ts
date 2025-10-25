@@ -1,13 +1,16 @@
 import { 
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  signInWithCredential,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
   updateProfile,
 } from 'firebase/auth';
+import * as AuthSession from 'expo-auth-session';
+import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, firestore } from './firebase';
 import { User } from '../types';
@@ -81,19 +84,84 @@ export class AuthService {
   static async signInWithGoogle(): Promise<FirebaseUser> {
     try {
       console.log('🔐 Signing in with Google');
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
       
-      console.log('✅ Google sign in successful');
-      
-      // Extract name from Google profile
-      const firstName = user.displayName?.split(' ')[0] || 'User';
-      const lastName = user.displayName?.split(' ').slice(1).join(' ') || '';
-      
-      // Create user profile if it doesn't exist
-      await this.createUserProfile(user, firstName, lastName);
-      
-      return user;
+      if (Platform.OS === 'web') {
+        // Use popup for web
+        const { signInWithPopup } = await import('firebase/auth');
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        
+        console.log('✅ Google sign in successful (web)');
+        
+        // Extract name from Google profile
+        const firstName = user.displayName?.split(' ')[0] || 'User';
+        const lastName = user.displayName?.split(' ').slice(1).join(' ') || '';
+        
+        // Create user profile if it doesn't exist
+        await this.createUserProfile(user, firstName, lastName);
+        
+        return user;
+      } else {
+        // Use AuthSession for React Native
+        if (!process.env.EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID) {
+          throw new Error('Google client ID not configured. Please set EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID in your environment variables.');
+        }
+        
+        // Use a simpler redirect URI for local development
+        const redirectUri = AuthSession.makeRedirectUri({
+          scheme: 'messageai',
+          path: '/auth',
+        });
+        
+        console.log('🔐 Using redirect URI:', redirectUri);
+        console.log('🔐 Client ID:', process.env.EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID);
+        
+        // Create the request using implicit flow (better for local development)
+        const request = new AuthSession.AuthRequest({
+          clientId: process.env.EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID,
+          scopes: ['openid', 'profile', 'email'],
+          redirectUri,
+          responseType: AuthSession.ResponseType.Token,
+          extraParams: {},
+          additionalParameters: {},
+        });
+        
+        // Start the authentication flow
+        const result = await request.promptAsync({
+          authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        });
+        
+        if (result.type === 'success') {
+          console.log('🔐 Google auth successful, using tokens directly');
+          
+          // With implicit flow, tokens are returned directly
+          const accessToken = result.params.access_token;
+          const idToken = result.params.id_token;
+          
+          // Create a Google credential with the tokens
+          const credential = GoogleAuthProvider.credential(
+            idToken,
+            accessToken
+          );
+          
+          // Sign in to Firebase with the credential
+          const userCredential = await signInWithCredential(auth, credential);
+          const user = userCredential.user;
+          
+          console.log('✅ Google sign in successful (React Native)');
+          
+          // Extract name from Google profile
+          const firstName = user.displayName?.split(' ')[0] || 'User';
+          const lastName = user.displayName?.split(' ').slice(1).join(' ') || '';
+          
+          // Create user profile if it doesn't exist
+          await this.createUserProfile(user, firstName, lastName);
+          
+          return user;
+        } else {
+          throw new Error('Google authentication was cancelled or failed');
+        }
+      }
     } catch (error: any) {
       console.error('❌ Google sign in failed:', error.code, error.message);
       throw error;

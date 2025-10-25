@@ -114,6 +114,12 @@ export class VoiceTranslationService {
           }
         );
 
+        console.log('🎤 VoiceTranslationService - Enhanced result:');
+        console.log('  - translation:', enhancedResult.translation);
+        console.log('  - culturalHints:', enhancedResult.culturalHints);
+        console.log('  - intelligentProcessing:', enhancedResult.intelligentProcessing);
+        console.log('  - method:', enhancedResult.method);
+
         translationResult = {
           transcription,
           translation: enhancedResult.translation,
@@ -195,6 +201,20 @@ export class VoiceTranslationService {
           updatedAt: Date.now()
         });
         console.log('Updated message transcription in Firestore');
+        
+        // Update conversation context with transcription
+        try {
+          const { supabaseVectorService } = await import('./supabaseVector');
+          await supabaseVectorService.storeMessage(chatId, transcription, {
+            messageId,
+            isVoiceMessage: true,
+            transcription: true
+          });
+          console.log('Updated voice message transcription in Supabase Vector for RAG context');
+        } catch (vectorError) {
+          console.warn('Failed to update voice message transcription in Supabase Vector:', vectorError);
+          // Don't fail the transcription update if vector storage fails
+        }
       } else {
         console.log('Updated message transcription in SQLite only (no chatId provided)');
       }
@@ -262,13 +282,24 @@ export class VoiceTranslationService {
     }
 
     try {
-      const useCulturalHints = userTranslationMode === 'advanced' || userTranslationMode === 'auto-advanced';
+      const useCulturalHints = userTranslationMode === 'auto-advanced';
       
-      return await this.translateVoiceMessage(message, targetLanguage, {
+      console.log('🎤 VoiceTranslationService.autoTranslateVoiceMessage:');
+      console.log('  - userTranslationMode:', userTranslationMode);
+      console.log('  - useCulturalHints:', useCulturalHints);
+      console.log('  - targetLanguage:', targetLanguage);
+      
+      const result = await this.translateVoiceMessage(message, targetLanguage, {
         useCulturalHints,
         useRAG: useCulturalHints,
         useSimpleTranslation: true
       });
+      
+      console.log('🎤 VoiceTranslationService.autoTranslateVoiceMessage result:');
+      console.log('  - result.intelligentProcessing:', result.intelligentProcessing);
+      console.log('  - result.culturalHints:', result.culturalHints);
+      
+      return result;
     } catch (error) {
       console.error('Error in auto-translate voice message:', error);
       return null;

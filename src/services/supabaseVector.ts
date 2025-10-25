@@ -142,8 +142,14 @@ class SupabaseVectorService {
     }
 
     try {
+      console.log('🔍 SupabaseVectorService.retrieveConversationContext:');
+      console.log('  - chatId:', chatId);
+      console.log('  - query:', query);
+      console.log('  - limit:', limit);
+
       // Generate embedding for the query
       const queryEmbedding = await this.generateEmbedding(query);
+      console.log('  - queryEmbedding length:', queryEmbedding.length);
 
       // Search for similar conversations using vector similarity
       const { data, error } = await this.supabase.rpc('match_conversations', {
@@ -153,12 +159,17 @@ class SupabaseVectorService {
         chat_id: chatId
       });
 
+      console.log('  - RPC result data:', data);
+      console.log('  - RPC result error:', error);
+
       if (error) {
         console.warn('Vector search failed, falling back to simple text search:', error);
         return await this.fallbackTextSearch(chatId, query, limit);
       }
 
-      return data?.map((item: any) => item.content) || [];
+      const results = data?.map((item: any) => item.content) || [];
+      console.log('  - Final results:', results);
+      return results;
     } catch (error) {
       console.error('Error retrieving conversation context:', error);
       return await this.fallbackTextSearch(chatId, query, limit);
@@ -174,6 +185,11 @@ class SupabaseVectorService {
     limit: number
   ): Promise<string[]> {
     try {
+      console.log('🔍 SupabaseVectorService.fallbackTextSearch:');
+      console.log('  - chatId:', chatId);
+      console.log('  - query:', query);
+      console.log('  - limit:', limit);
+
       const { data, error } = await this.supabase
         .from('conversation_embeddings')
         .select('content')
@@ -181,11 +197,16 @@ class SupabaseVectorService {
         .order('created_at', { ascending: false })
         .limit(limit);
 
+      console.log('  - Fallback search data:', data);
+      console.log('  - Fallback search error:', error);
+
       if (error) {
         throw new Error(`Fallback search failed: ${error.message}`);
       }
 
-      return data?.map((item: any) => item.content) || [];
+      const results = data?.map((item: any) => item.content) || [];
+      console.log('  - Fallback results:', results);
+      return results;
     } catch (error) {
       console.error('Fallback text search failed:', error);
       return [];

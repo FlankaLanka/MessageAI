@@ -73,6 +73,35 @@ class PresenceService {
     }
   }
 
+  // Get current user presence (one-time check)
+  async getUserPresence(uid: string): Promise<PresenceData | null> {
+    try {
+      const userStatusRef = ref(database, `status/${uid}`);
+      const snapshot = await new Promise((resolve, reject) => {
+        onValue(userStatusRef, (snapshot) => {
+          off(userStatusRef);
+          resolve(snapshot);
+        }, { onlyOnce: true });
+      });
+      
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        return {
+          state: data.state || 'offline',
+          lastSeen: data.lastSeen || Date.now(),
+        };
+      } else {
+        return {
+          state: 'offline',
+          lastSeen: Date.now(),
+        };
+      }
+    } catch (error) {
+      console.error('Error getting user presence:', error);
+      return null;
+    }
+  }
+
   // Subscribe to user presence
   subscribeToUserPresence(uid: string, callback: (presence: PresenceData) => void): () => void {
     try {

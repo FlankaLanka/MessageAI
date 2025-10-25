@@ -20,8 +20,6 @@ interface TranslationSettingsScreenProps {
 
 export default function TranslationSettingsScreen({ onNavigateBack }: TranslationSettingsScreenProps) {
   const {
-    culturalHintsEnabled,
-    setCulturalHintsEnabled,
     clearTranslationCache
   } = useStore();
   
@@ -67,26 +65,6 @@ export default function TranslationSettingsScreen({ onNavigateBack }: Translatio
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Cultural hints setting */}
-        <View style={styles.settingSection}>
-          <View style={styles.settingHeader}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="information-circle" size={24} color="#3B82F6" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Cultural Hints</Text>
-              <Text style={styles.settingDescription}>
-                Show cultural context for slang, idioms, and cultural references
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={culturalHintsEnabled}
-            onValueChange={setCulturalHintsEnabled}
-            trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
-            thumbColor={culturalHintsEnabled ? '#fff' : '#fff'}
-          />
-        </View>
 
         {/* Cache management */}
         <TouchableOpacity
@@ -115,7 +93,7 @@ export default function TranslationSettingsScreen({ onNavigateBack }: Translatio
           </View>
           <Text style={styles.infoText}>
             • Set your translation language to translate messages{'\n'}
-            • Cultural hints help you understand slang, idioms, and cultural references{'\n'}
+            • Use 'Advanced' or 'Auto-Advanced' modes for cultural hints and context{'\n'}
             • Translations are cached for faster loading and reduced costs{'\n'}
             • Voice messages are automatically transcribed and translated{'\n'}
             • Tap the translate button on messages to translate them

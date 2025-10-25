@@ -30,6 +30,7 @@ export const VoiceMessagePreviewModal: React.FC<VoiceMessagePreviewModalProps> =
   const { t } = useLocalization();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isSending, setIsSending] = useState(false);
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -65,10 +66,18 @@ export const VoiceMessagePreviewModal: React.FC<VoiceMessagePreviewModalProps> =
     onReRecord();
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
+    if (isSending) return; // Prevent multiple sends
+    
+    setIsSending(true);
     setIsPlaying(false);
     setCurrentTime(0);
-    onSend();
+    
+    try {
+      await onSend();
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -81,7 +90,7 @@ export const VoiceMessagePreviewModal: React.FC<VoiceMessagePreviewModalProps> =
       <View style={styles.overlay}>
         <View style={styles.modal}>
           {/* Title */}
-          <Text style={styles.title}>Voice Message Preview</Text>
+          <Text style={styles.title}>{t('voiceMessagePreview')}</Text>
           
           {/* Voice Playback Component */}
           <View style={styles.playbackContainer}>
@@ -124,23 +133,26 @@ export const VoiceMessagePreviewModal: React.FC<VoiceMessagePreviewModalProps> =
               style={styles.cancelButton}
               onPress={onCancel}
             >
-              <Ionicons name="close" size={16} color="#374151" />
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Ionicons name="close" size={14} color="#374151" />
+              <Text style={styles.cancelButtonText} numberOfLines={1}>{t('cancel')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.reRecordButton}
               onPress={handleReRecord}
             >
-              <Ionicons name="refresh" size={16} color="#fff" />
-              <Text style={styles.reRecordButtonText}>Re-record</Text>
+              <Ionicons name="refresh" size={14} color="#fff" />
+              <Text style={styles.reRecordButtonText} numberOfLines={1}>{t('reRecord')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.sendButton}
+              style={[styles.sendButton, isSending && styles.sendButtonDisabled]}
               onPress={handleSend}
+              disabled={isSending}
             >
-              <Text style={styles.sendButtonText}>Send</Text>
+              <Text style={styles.sendButtonText} numberOfLines={1}>
+                {isSending ? t('sending') : t('send')}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -218,10 +230,11 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
   },
   cancelButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -230,42 +243,59 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 6,
+    paddingHorizontal: 8,
+    gap: 4,
+    minWidth: 70,
+    flex: 1,
+    maxWidth: 120,
   },
   cancelButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#374151',
+    textAlign: 'center',
+    numberOfLines: 1,
   },
   reRecordButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F97316',
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 6,
+    paddingHorizontal: 8,
+    gap: 4,
+    minWidth: 70,
+    flex: 1,
+    maxWidth: 120,
   },
   reRecordButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#fff',
+    textAlign: 'center',
+    numberOfLines: 1,
   },
   sendButton: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#007AFF',
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+    minWidth: 70,
+    flex: 1,
+    maxWidth: 120,
   },
   sendButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#fff',
+    textAlign: 'center',
+    numberOfLines: 1,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.6,
   },
 });

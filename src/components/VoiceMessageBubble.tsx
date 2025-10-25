@@ -36,6 +36,7 @@ interface VoiceMessageBubbleProps {
   messageTranslations?: { [messageId: string]: any }; // Translation state
   onTranslationComplete?: (messageId: string, translation: string, language: string, culturalHints?: any[], intelligentProcessing?: any) => void; // Translation callback
   onCloseTranslation?: (messageId: string) => void; // Close translation callback
+  onReactionPress?: (messageId: string) => void; // Reaction callback
 }
 
 export default function VoiceMessageBubble({
@@ -52,7 +53,8 @@ export default function VoiceMessageBubble({
   chatMessages = [],
   messageTranslations = {},
   onTranslationComplete,
-  onCloseTranslation
+  onCloseTranslation,
+  onReactionPress
 }: VoiceMessageBubbleProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [localAudioUri, setLocalAudioUri] = useState<string | null>(null);
@@ -288,7 +290,7 @@ export default function VoiceMessageBubble({
             </Text>
             
             {/* Enhanced Inline Translation - same as text messages */}
-            {messageTranslations[message.id] && (
+            {message && messageTranslations[message.id] && (
               <TranslatedMessageDisplay
                 translation={messageTranslations[message.id].text}
                 language={messageTranslations[message.id].language}
@@ -307,7 +309,7 @@ export default function VoiceMessageBubble({
             {new Date(message?.timestamp || Date.now()).toLocaleTimeString()}
           </Text>
           {/* Translation Button - same as text messages */}
-          {localTranscription && !messageTranslations[message.id] && (
+          {message && localTranscription && !messageTranslations[message.id] && (
             <>
               {console.log('🎤 VoiceMessageBubble - Creating TranslationButton:')}
               {console.log('  - messageId:', message.id)}
@@ -318,13 +320,12 @@ export default function VoiceMessageBubble({
               <TranslationButton
                 messageId={message.id}
                 originalText={localTranscription}
-                onTranslationComplete={onTranslationComplete}
+                onTranslationComplete={onTranslationComplete || (() => {})}
                 isOwn={isOwnMessage}
                 message={{
                   ...message,
                   text: localTranscription, // Use transcription as the text content
-                  // Ensure the message is structured exactly like a text message
-                  type: 'text' // Force it to be treated as text message
+                  // Keep original message type to preserve voice message detection
                 }}
                 chatMessages={chatMessages}
               />
@@ -333,13 +334,16 @@ export default function VoiceMessageBubble({
         </View>
         
         {/* Reaction Button - same as text messages */}
-        <ReactionButton
-          onPress={() => {
-            // Handle reaction button press - same as text messages
-            console.log('Reaction button pressed for voice message:', message?.id);
-          }}
-          isOwn={isOwnMessage}
-        />
+        {message && (
+          <ReactionButton
+            onPress={() => {
+              // Handle reaction button press - same as text messages
+              console.log('Reaction button pressed for voice message:', message.id);
+              onReactionPress?.(message.id);
+            }}
+            isOwn={isOwnMessage}
+          />
+        )}
       </View>
     </View>
   );

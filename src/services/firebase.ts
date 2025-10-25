@@ -47,4 +47,11 @@ export const firestore = getFirestore(app);
 export const database = getDatabase(app);
 export const storage = getStorage(app);
 
+// Debug: Log Firestore instance
+console.log('Firestore instance created:', {
+  app: app.name,
+  projectId: firebaseConfig.projectId,
+  firestoreType: typeof firestore
+});
+
 export default app;

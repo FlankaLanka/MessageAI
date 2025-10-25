@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User, Message, Chat, Group, Translation, CulturalHint } from '../types';
 import { localizationService } from '../services/localization';
+import { UserService } from '../services/users';
 
 interface AppState {
   // User state
@@ -54,8 +55,8 @@ interface AppState {
   setTranslationMode: (mode: 'manual' | 'auto' | 'advanced' | 'auto-advanced') => void;
   
   // Smart Suggestions actions
-  setSmartSuggestionsUseRAG: (useRAG: boolean) => void;
-  setSmartSuggestionsIncludeOtherLanguage: (includeOtherLanguage: boolean) => void;
+  setSmartSuggestionsUseRAG: (useRAG: boolean) => Promise<void>;
+  setSmartSuggestionsIncludeOtherLanguage: (includeOtherLanguage: boolean) => Promise<void>;
   addTranslation: (messageId: string, translation: Translation) => void;
   addCulturalHints: (messageId: string, hints: CulturalHint[]) => void;
   setTranslating: (messageId: string, isTranslating: boolean) => void;
@@ -66,8 +67,8 @@ interface AppState {
   getCachedTranslation: (textHash: string, language: string) => Translation | null;
   getCachedCulturalHints: (textHash: string) => CulturalHint[] | null;
   getCachedIntelligentProcessing: (textHash: string) => any | null;
-  setTranslationCacheEnabled: (enabled: boolean) => void;
-  clearTranslationCache: () => void;
+  setTranslationCacheEnabled: (enabled: boolean) => Promise<void>;
+  clearTranslationCache: () => Promise<void>;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -93,12 +94,17 @@ export const useStore = create<AppState>((set) => ({
   translationErrors: new Map(),
   
   // Smart Suggestions initial state
-  smartSuggestionsUseRAG: false, // Default to recent messages for speed
-  smartSuggestionsIncludeOtherLanguage: false, // Default to user's language only
+  smartSuggestionsUseRAG: true, // Default to RAG context for better suggestions
+  smartSuggestionsIncludeOtherLanguage: true, // Default to include other language suggestions
   
   // Actions
   setUser: (user) => {
     console.log('Store: Setting user with language preference:', user?.defaultLanguage);
+    console.log('Store: User settings:', {
+      translationCacheEnabled: user?.translationCacheEnabled,
+      smartSuggestionsUseRAG: user?.smartSuggestionsUseRAG,
+      smartSuggestionsIncludeOtherLanguage: user?.smartSuggestionsIncludeOtherLanguage
+    });
     set({ user });
     // Update localization service with user's language preference
     localizationService.setUser(user);
@@ -117,6 +123,29 @@ export const useStore = create<AppState>((set) => ({
       set({ translationMode: user.translationMode });
     } else {
       console.log('Store: No translationMode found in user profile, using default');
+    }
+    
+    // Update translation cache setting from user's preference
+    if (user?.translationCacheEnabled !== undefined) {
+      console.log('Store: Setting translationCacheEnabled to:', user.translationCacheEnabled);
+      set({ translationCacheEnabled: user.translationCacheEnabled });
+    } else {
+      console.log('Store: translationCacheEnabled not provided, keeping current value');
+    }
+    
+    // Update smart suggestions settings from user's preferences
+    if (user?.smartSuggestionsUseRAG !== undefined) {
+      console.log('Store: Setting smartSuggestionsUseRAG to:', user.smartSuggestionsUseRAG);
+      set({ smartSuggestionsUseRAG: user.smartSuggestionsUseRAG });
+    } else {
+      console.log('Store: smartSuggestionsUseRAG not provided, keeping current value');
+    }
+    
+    if (user?.smartSuggestionsIncludeOtherLanguage !== undefined) {
+      console.log('Store: Setting smartSuggestionsIncludeOtherLanguage to:', user.smartSuggestionsIncludeOtherLanguage);
+      set({ smartSuggestionsIncludeOtherLanguage: user.smartSuggestionsIncludeOtherLanguage });
+    } else {
+      console.log('Store: smartSuggestionsIncludeOtherLanguage not provided, keeping current value');
     }
   },
   setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
@@ -258,18 +287,39 @@ export const useStore = create<AppState>((set) => ({
     return state.intelligentProcessingCache.get(textHash) || null;
   },
   
-  setTranslationCacheEnabled: (enabled) => set((state) => {
-    // If disabling cache, clear existing cache
-    if (!enabled) {
-      return { 
-        translationCacheEnabled: enabled,
-        translationCache: new Map(),
-        culturalHintCache: new Map(),
-        intelligentProcessingCache: new Map()
-      };
+  setTranslationCacheEnabled: async (enabled) => {
+    set((state) => {
+      // If disabling cache, clear existing cache
+      if (!enabled) {
+        return { 
+          translationCacheEnabled: enabled,
+          translationCache: new Map(),
+          culturalHintCache: new Map(),
+          intelligentProcessingCache: new Map()
+        };
+      }
+      return { translationCacheEnabled: enabled };
+    });
+    
+    // Sync to database
+    const { user } = useStore.getState();
+    if (user) {
+      try {
+        console.log('Store: Attempting to sync translationCacheEnabled to database:', enabled, 'for user:', user.uid);
+        await UserService.updateUserProfile(user.uid, { translationCacheEnabled: enabled });
+        console.log('Store: Successfully synced translationCacheEnabled to database:', enabled);
+      } catch (error) {
+        console.error('Store: Failed to sync translationCacheEnabled to database:', error);
+        console.error('Store: Error details:', {
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        });
+      }
+    } else {
+      console.warn('Store: No user found, cannot sync translationCacheEnabled to database');
     }
-    return { translationCacheEnabled: enabled };
-  }),
+  },
   
   clearTranslationCache: async () => {
     console.log('🧹 Clearing translation cache...');
@@ -312,6 +362,49 @@ export const useStore = create<AppState>((set) => ({
   },
   
   // Smart Suggestions actions
-  setSmartSuggestionsUseRAG: (useRAG) => set({ smartSuggestionsUseRAG: useRAG }),
-  setSmartSuggestionsIncludeOtherLanguage: (includeOtherLanguage) => set({ smartSuggestionsIncludeOtherLanguage: includeOtherLanguage }),
+  setSmartSuggestionsUseRAG: async (useRAG) => {
+    set({ smartSuggestionsUseRAG: useRAG });
+    
+    // Sync to database
+    const { user } = useStore.getState();
+    if (user) {
+      try {
+        console.log('Store: Attempting to sync smartSuggestionsUseRAG to database:', useRAG, 'for user:', user.uid);
+        await UserService.updateUserProfile(user.uid, { smartSuggestionsUseRAG: useRAG });
+        console.log('Store: Successfully synced smartSuggestionsUseRAG to database:', useRAG);
+      } catch (error) {
+        console.error('Store: Failed to sync smartSuggestionsUseRAG to database:', error);
+        console.error('Store: Error details:', {
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        });
+      }
+    } else {
+      console.warn('Store: No user found, cannot sync smartSuggestionsUseRAG to database');
+    }
+  },
+  
+  setSmartSuggestionsIncludeOtherLanguage: async (includeOtherLanguage) => {
+    set({ smartSuggestionsIncludeOtherLanguage: includeOtherLanguage });
+    
+    // Sync to database
+    const { user } = useStore.getState();
+    if (user) {
+      try {
+        console.log('Store: Attempting to sync smartSuggestionsIncludeOtherLanguage to database:', includeOtherLanguage, 'for user:', user.uid);
+        await UserService.updateUserProfile(user.uid, { smartSuggestionsIncludeOtherLanguage: includeOtherLanguage });
+        console.log('Store: Successfully synced smartSuggestionsIncludeOtherLanguage to database:', includeOtherLanguage);
+      } catch (error) {
+        console.error('Store: Failed to sync smartSuggestionsIncludeOtherLanguage to database:', error);
+        console.error('Store: Error details:', {
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        });
+      }
+    } else {
+      console.warn('Store: No user found, cannot sync smartSuggestionsIncludeOtherLanguage to database');
+    }
+  },
 }));

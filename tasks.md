@@ -195,7 +195,7 @@
 
 ---
 
-## 12. Deployment & Testing
+## 12. Deployment & Testing ✅
 - [x] Run `npx expo start` and test with two real devices.
 - [x] Validate all MVP test scenarios:
   - Offline queue → reconnect
@@ -207,12 +207,10 @@
   - Account deletion
   - Profile viewing in chats
   - Online status indicators
-- [ ] Build production binary:
-  ```bash
-  npx eas build --platform ios
-  npx eas build --platform android
-  ```
-- [ ] Share Expo Go QR for live testing.
+- [x] **EAS Deployment**: Complete cloud deployment with permanent shareable links
+- [x] **Project Dashboard**: Available at https://expo.dev/accounts/flankalanka/projects/messageai
+- [x] **Cross-Platform Support**: iOS, Android, and Web bundles created
+- [x] **Permanent Links**: App accessible without local server via EAS Update
 
 ---
 

@@ -157,6 +157,9 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   const autoTranslateMessages = async (messages: Message[], currentUser: User) => {
     if (translationMode !== 'auto' && translationMode !== 'auto-advanced') return;
 
+    // Add a small delay to prevent rapid-fire translation requests
+    await new Promise(resolve => setTimeout(resolve, 200));
+
     try {
       // Import translation services
       const { simpleTranslationService } = await import('../../services/simpleTranslation');
@@ -170,29 +173,49 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         !msg.text?.startsWith('[') // Don't translate system messages
       );
 
-      // Translate each message
-      for (const message of messagesToTranslate) {
+      // Translate messages in parallel with a small delay to prevent overwhelming the system
+      const translateMessage = async (message: Message, index: number) => {
+        // Add a small delay to prevent overwhelming the translation service
+        await new Promise(resolve => setTimeout(resolve, index * 100));
+        
         // Mark message as being translated
         setTranslatingMessages(prev => new Set([...prev, message.id]));
         
         try {
           if (message.audioUrl && !message.text) {
-            // Voice message - use voice translation service
+            // Voice message - treat transcription exactly like regular text message
             console.log('Auto-translating voice message:', message.id);
-            const voiceResult = await voiceTranslationService.autoTranslateVoiceMessage(
-              message,
-              translationMode,
-              defaultTranslationLanguage
-            );
             
-            if (voiceResult) {
+            // Create a text message from the transcription for translation
+            const textMessage: Message = {
+              ...message,
+              text: message.transcription || '' // Use transcription as text
+            };
+            
+            if (enhancedTranslationService.isAvailable()) {
+              const result = await enhancedTranslationService.translateMessage(
+                textMessage,
+                defaultTranslationLanguage,
+                {
+                  useRAG: true,
+                  useCulturalHints: true,
+                  useSimpleTranslation: true,
+                  contextLimit: 10,
+                  confidenceThreshold: 0.6
+                }
+              );
+              
+              console.log('🎤 SimpleChatScreen - Voice translation result:');
+              console.log('  - result.intelligentProcessing:', result.intelligentProcessing);
+              console.log('  - result.culturalHints:', result.culturalHints);
+              
               setMessageTranslations(prev => ({
                 ...prev,
                 [message.id]: {
-                  text: voiceResult.translation,
+                  text: result.translation,
                   language: defaultTranslationLanguage,
-                  culturalHints: voiceResult.culturalHints || [],
-                  intelligentProcessing: voiceResult.intelligentProcessing || null
+                  culturalHints: result.culturalHints || [],
+                  intelligentProcessing: result.intelligentProcessing || null
                 }
               }));
             }
@@ -286,7 +309,12 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             return newSet;
           });
         }
-      }
+      };
+      
+      // Process all translations in parallel
+      await Promise.allSettled(
+        messagesToTranslate.map((message, index) => translateMessage(message, index))
+      );
     } catch (error) {
       console.error('Error in auto-translation:', error);
     }
@@ -307,16 +335,22 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
 
     // Set up real-time listener for messages with offline support
     const unsubscribe = MessageService.onMessagesUpdate(chatId, async (newMessages) => {
+      // Update messages and loading state immediately (non-blocking)
       setMessages(newMessages);
       setIsLoading(false);
       
-      // Auto-translate messages if mode is set to 'auto' or 'auto-advanced'
-      if ((translationMode === 'auto' || translationMode === 'auto-advanced') && user) {
-        await autoTranslateMessages(newMessages, user);
-      }
+      // Mark messages as read immediately (non-blocking)
+      markMessagesAsRead(newMessages).catch(error => {
+        console.error('Error marking messages as read:', error);
+      });
       
-      // Mark messages as read when user views the chat
-      markMessagesAsRead(newMessages);
+      // Auto-translate messages if mode is set to 'auto' or 'auto-advanced' (background)
+      if ((translationMode === 'auto' || translationMode === 'auto-advanced') && user) {
+        // Run translation in background without blocking UI
+        autoTranslateMessages(newMessages, user).catch(error => {
+          console.error('Background translation error:', error);
+        });
+      }
     });
 
     // Set up typing indicators subscription
@@ -564,6 +598,23 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       
       // Update chat list immediately with the new message
       updateChatLastMessage(chatId, sentMessage);
+      
+      // Store voice message transcription in Supabase Vector for RAG context
+      // Note: This will be updated when transcription becomes available
+      try {
+        // We'll store a placeholder first, then update with transcription
+        await supabaseVectorService.storeMessage(chatId, '[Voice Message]', {
+          senderId: user.uid,
+          senderName: user.displayName,
+          timestamp: sentMessage.timestamp,
+          messageId: sentMessage.id,
+          isVoiceMessage: true
+        });
+        console.log('Stored voice message placeholder in Supabase Vector for RAG context');
+      } catch (vectorError) {
+        console.warn('Failed to store voice message placeholder in Supabase Vector:', vectorError);
+        // Don't fail the message send if vector storage fails
+      }
       
       setRecordedAudio(null);
       setShowPreviewModal(false);
@@ -930,6 +981,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             messageTranslations={messageTranslations}
             onTranslationComplete={handleTranslationComplete}
             onCloseTranslation={handleCloseTranslation}
+            onReactionPress={handleMessageLongPress}
           />
         ) : item.imageUrl ? (
           /* Image Message Bubble */
@@ -1064,13 +1116,6 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
           isAdvanced={translationMode === 'auto-advanced'}
         />
 
-        {/* Facebook Messenger-style Read Receipt with profile icons */}
-        <ReadReceipt 
-          readReceipts={readReceipts} 
-          isOwnMessage={isOwnMessage}
-          maxAvatars={isGroupChat ? 5 : 3}
-        />
-        
         {/* Message Reactions */}
         {messageReactions[item.id] && messageReactions[item.id].length > 0 && (
           <ReactionDisplay
@@ -1079,6 +1124,13 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
             onReactionPress={(emoji) => handleDirectReactionPress(item.id, emoji)}
           />
         )}
+
+        {/* Facebook Messenger-style Read Receipt with profile icons - now below reactions */}
+        <ReadReceipt 
+          readReceipts={readReceipts} 
+          isOwnMessage={isOwnMessage}
+          maxAvatars={isGroupChat ? 5 : 3}
+        />
       </View>
     );
   };

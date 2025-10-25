@@ -91,11 +91,16 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
           defaultLanguage: languageCode,
         });
         
-        // Update local user state
-        setUser({
+        // Update local user state - preserve all existing settings
+        const updatedUser = {
           ...user,
           defaultLanguage: languageCode,
-        });
+          // Ensure all settings are preserved from the current user object
+          translationCacheEnabled: user.translationCacheEnabled,
+          smartSuggestionsUseRAG: user.smartSuggestionsUseRAG,
+          smartSuggestionsIncludeOtherLanguage: user.smartSuggestionsIncludeOtherLanguage,
+        };
+        setUser(updatedUser);
       }
       
       setShowLanguageList(false);
@@ -125,11 +130,16 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
           translationMode: mode,
         });
         
-        // Update local user state
-        setUser({
+        // Update local user state - preserve all existing settings
+        const updatedUser = {
           ...user,
           translationMode: mode,
-        });
+          // Ensure all settings are preserved from the current user object
+          translationCacheEnabled: user.translationCacheEnabled,
+          smartSuggestionsUseRAG: user.smartSuggestionsUseRAG,
+          smartSuggestionsIncludeOtherLanguage: user.smartSuggestionsIncludeOtherLanguage,
+        };
+        setUser(updatedUser);
       }
       
       setShowTranslationModeList(false);
@@ -163,6 +173,42 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
         }
       ]
     );
+  };
+
+  const handleTranslationCacheToggle = async (enabled: boolean) => {
+    try {
+      setIsUpdating(true);
+      await setTranslationCacheEnabled(enabled);
+    } catch (error) {
+      console.error('Error updating translation cache setting:', error);
+      Alert.alert(t('error'), t('updateSettingError'));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSmartSuggestionsRAGToggle = async (useRAG: boolean) => {
+    try {
+      setIsUpdating(true);
+      await setSmartSuggestionsUseRAG(useRAG);
+    } catch (error) {
+      console.error('Error updating smart suggestions RAG setting:', error);
+      Alert.alert(t('error'), t('updateSettingError'));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSmartSuggestionsLanguageToggle = async (includeOtherLanguage: boolean) => {
+    try {
+      setIsUpdating(true);
+      await setSmartSuggestionsIncludeOtherLanguage(includeOtherLanguage);
+    } catch (error) {
+      console.error('Error updating smart suggestions language setting:', error);
+      Alert.alert(t('error'), t('updateSettingError'));
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const renderLanguageItem = ({ item }: { item: { code: string; name: string; nativeName: string } }) => {
@@ -260,7 +306,8 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
               </View>
               <Switch
                 value={translationCacheEnabled}
-                onValueChange={setTranslationCacheEnabled}
+                onValueChange={handleTranslationCacheToggle}
+                disabled={isUpdating}
                 trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
                 thumbColor={translationCacheEnabled ? '#fff' : '#fff'}
               />
@@ -299,7 +346,7 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
               </View>
               <Switch
                 value={smartSuggestionsUseRAG}
-                onValueChange={setSmartSuggestionsUseRAG}
+                onValueChange={handleSmartSuggestionsRAGToggle}
                 disabled={isUpdating}
                 trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
                 thumbColor={smartSuggestionsUseRAG ? '#fff' : '#fff'}
@@ -319,7 +366,7 @@ export default function LanguageSelector({ visible, onClose }: LanguageSelectorP
               </View>
               <Switch
                 value={smartSuggestionsIncludeOtherLanguage}
-                onValueChange={setSmartSuggestionsIncludeOtherLanguage}
+                onValueChange={handleSmartSuggestionsLanguageToggle}
                 disabled={isUpdating}
                 trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
                 thumbColor={smartSuggestionsIncludeOtherLanguage ? '#fff' : '#fff'}

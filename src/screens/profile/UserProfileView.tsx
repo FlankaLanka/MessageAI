@@ -15,6 +15,7 @@ import { User } from '../../types';
 import { UserService } from '../../services/users';
 import { useLocalization } from '../../hooks/useLocalization';
 import OnlineIndicator from '../../components/OnlineIndicator';
+import { presenceService } from '../../services/presence';
 
 interface UserProfileViewProps {
   userId: string;
@@ -35,6 +36,22 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
     loadUserProfile();
   }, [userId]);
 
+  // Subscribe to real-time presence updates
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = presenceService.subscribeToUserPresence(
+      user.uid,
+      (presenceData) => {
+        setIsOnline(presenceData.state === 'online');
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user]);
+
   const loadUserProfile = async () => {
     try {
       setIsLoading(true);
@@ -42,7 +59,18 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
       setUser(userProfile);
       
       if (userProfile) {
+        // Set initial status from profile, but real-time updates will come from presence subscription
         setIsOnline(userProfile.status === 'online');
+        
+        // Also get real-time presence status immediately
+        try {
+          const currentPresence = await presenceService.getUserPresence(userProfile.uid);
+          if (currentPresence) {
+            setIsOnline(currentPresence.state === 'online');
+          }
+        } catch (presenceError) {
+          console.log('Could not get real-time presence, using profile status:', presenceError);
+        }
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -161,7 +189,11 @@ export default function UserProfileView({ userId, onNavigateBack, onStartChat }:
           
           <View style={styles.statusContainer}>
             <View style={[styles.statusDot, isOnline ? styles.statusOnline : styles.statusOffline]} />
-            <Text style={[styles.statusText, isSmallScreen && styles.statusTextSmall]}>
+            <Text style={[
+              styles.statusText, 
+              isSmallScreen && styles.statusTextSmall,
+              isOnline ? styles.statusTextOnline : styles.statusTextOffline
+            ]}>
               {isOnline ? t('online') : t('offline')}
             </Text>
           </View>
@@ -352,10 +384,15 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 16,
-    color: '#666',
   },
   statusTextSmall: {
     fontSize: 14,
+  },
+  statusTextOnline: {
+    color: '#4CAF50', // Green for online
+  },
+  statusTextOffline: {
+    color: '#9E9E9E', // Gray for offline
   },
   actions: {
     gap: 16,

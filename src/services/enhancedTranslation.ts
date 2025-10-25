@@ -113,19 +113,24 @@ class EnhancedTranslationService {
       console.log('  - EXPO_PUBLIC_SUPABASE_URL exists:', !!process.env.EXPO_PUBLIC_SUPABASE_URL);
       console.log('  - EXPO_PUBLIC_SUPABASE_ANON_KEY exists:', !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
       
-      if (opts.useRAG && ragContext.messages.length > 0) {
+      if (opts.useRAG) {
         try {
           console.log('🔤 EnhancedTranslationService - Attempting RAG translation...');
+          console.log('  - ragContext.messages.length:', ragContext.messages.length);
+          console.log('  - Will use RAG even without context for AI analysis');
+          
           const ragResult = await ragTranslationService.translateWithRAG(
             messageText,
             ragContext,
             userPreferences
           );
           console.log('🔤 EnhancedTranslationService - RAG result:', ragResult);
+          console.log('  - intelligent_processing.confidence:', ragResult.intelligent_processing.confidence);
+          console.log('  - confidenceThreshold:', opts.confidenceThreshold || 0.5);
 
-          // Check confidence threshold
+          // Check confidence threshold (use lower threshold for better AI analysis)
           if (ragResult.intelligent_processing.confidence && 
-              ragResult.intelligent_processing.confidence >= (opts.confidenceThreshold || 0.7)) {
+              ragResult.intelligent_processing.confidence >= (opts.confidenceThreshold || 0.5)) {
             
             const result = {
               translation: ragResult.translation,
@@ -145,6 +150,10 @@ class EnhancedTranslationService {
             store.cacheIntelligentProcessing(textHash, ragResult.intelligent_processing);
             
             return result;
+          } else {
+            console.log('🔤 EnhancedTranslationService - RAG confidence too low, falling back to simple translation');
+            console.log('  - confidence:', ragResult.intelligent_processing.confidence);
+            console.log('  - threshold:', opts.confidenceThreshold || 0.5);
           }
         } catch (error) {
           console.warn('RAG translation failed, falling back:', error);

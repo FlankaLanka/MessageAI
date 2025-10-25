@@ -55,8 +55,6 @@ export interface LocalizationStrings {
   mustBeLoggedInToCreateGroup: string;
   groupCreatedSuccessfully: string;
   failedToCreateGroup: string;
-  success: string;
-  done: string;
   searchUsers: string;
   groupMembers: string;
   admin: string;
@@ -92,7 +90,6 @@ export interface LocalizationStrings {
   clearCacheError: string;
   cancel: string;
   clear: string;
-  success: string;
   error: string;
   
   // Voice Messages
@@ -104,6 +101,9 @@ export interface LocalizationStrings {
   transcription: string;
   voiceTranscription: string;
   noTranscriptionAvailable: string;
+  voiceMessagePreview: string;
+  reRecord: string;
+  sending: string;
   
   // Notifications
   newMessage: string;
@@ -113,12 +113,12 @@ export interface LocalizationStrings {
   // Common
   loading: string;
   retry: string;
-  done: string;
-  back: string;
   next: string;
   save: string;
   delete: string;
   edit: string;
+  success: string;
+  updateSettingError: string;
   searchByEmail: string;
   close: string;
   yes: string;
@@ -261,8 +261,6 @@ const en: LocalizationStrings = {
   mustBeLoggedInToCreateGroup: 'You must be logged in to create a group',
   groupCreatedSuccessfully: 'Group created successfully!',
   failedToCreateGroup: 'Failed to create group. Please try again.',
-  success: 'Success',
-  done: 'Done',
   searchUsers: 'Search Users',
   groupMembers: 'Group Members',
   admin: 'Admin',
@@ -302,7 +300,6 @@ const en: LocalizationStrings = {
   clearCacheError: 'Failed to clear cache',
   cancel: 'Cancel',
   clear: 'Clear',
-  success: 'Success',
   error: 'Error',
   
   // Voice Messages
@@ -314,6 +311,9 @@ const en: LocalizationStrings = {
   transcription: 'Transcription',
   voiceTranscription: 'Voice Transcription',
   noTranscriptionAvailable: 'No transcription available',
+  voiceMessagePreview: 'Voice Message Preview',
+  reRecord: 'Re-record',
+  sending: 'Sending...',
   
   // Notifications
   newMessage: 'New Message',
@@ -323,12 +323,12 @@ const en: LocalizationStrings = {
   // Common
   loading: 'Loading...',
   retry: 'Retry',
-  done: 'Done',
-  back: 'Back',
   next: 'Next',
   save: 'Save',
   delete: 'Delete',
   edit: 'Edit',
+  success: 'Success',
+  updateSettingError: 'Failed to update setting. Please try again.',
   searchByEmail: 'Search by email...',
   close: 'Close',
   yes: 'Yes',
@@ -344,18 +344,11 @@ const en: LocalizationStrings = {
   failedToSendVoiceMessage: 'Failed to send voice message',
   failedToAddReaction: 'Failed to add reaction',
   noMessagesYet: 'No messages yet',
-  // Profile and Auth strings
-  saveChanges: 'Save Changes',
-  saving: 'Saving...',
-  editPicture: 'Edit Picture',
-  uploading: 'Uploading...',
   deletePicture: 'Delete Picture',
   deleteAccount: 'Delete Account',
-  emailCannotBeChanged: 'Email cannot be changed',
   enterFirstName: 'Enter your first name',
   enterLastName: 'Enter your last name',
   enterPhoneNumber: 'Enter your phone number',
-  phoneNumberWillBeVerified: 'Phone number will be verified later',
   welcomeBack: 'Welcome Back!',
   signInToAccount: 'Sign in to your account',
   signingIn: 'Signing In...',
@@ -473,8 +466,6 @@ const es: LocalizationStrings = {
   mustBeLoggedInToCreateGroup: 'Debes estar conectado para crear un grupo',
   groupCreatedSuccessfully: '¡Grupo creado exitosamente!',
   failedToCreateGroup: 'Error al crear el grupo. Por favor intenta de nuevo.',
-  success: 'Éxito',
-  done: 'Listo',
   searchUsers: 'Buscar Usuarios',
   groupMembers: 'Miembros del Grupo',
   admin: 'Administrador',
@@ -514,7 +505,6 @@ const es: LocalizationStrings = {
   clearCacheError: 'Error al limpiar caché',
   cancel: 'Cancelar',
   clear: 'Limpiar',
-  success: 'Éxito',
   error: 'Error',
   
   // Voice Messages
@@ -526,6 +516,9 @@ const es: LocalizationStrings = {
   transcription: 'Transcripción',
   voiceTranscription: 'Transcripción de Voz',
   noTranscriptionAvailable: 'No hay transcripción disponible',
+  voiceMessagePreview: 'Vista Previa del Mensaje de Voz',
+  reRecord: 'Regrabar',
+  sending: 'Enviando...',
   
   // Notifications
   newMessage: 'Nuevo Mensaje',
@@ -535,12 +528,12 @@ const es: LocalizationStrings = {
   // Common
   loading: 'Cargando...',
   retry: 'Reintentar',
-  done: 'Hecho',
-  back: 'Atrás',
   next: 'Siguiente',
   save: 'Guardar',
   delete: 'Eliminar',
   edit: 'Editar',
+  success: 'Éxito',
+  updateSettingError: 'Error al actualizar la configuración. Por favor intenta de nuevo.',
   searchByEmail: 'Buscar por email...',
   close: 'Cerrar',
   yes: 'Sí',
@@ -556,18 +549,11 @@ const es: LocalizationStrings = {
   failedToSendVoiceMessage: 'Error al enviar mensaje de voz',
   failedToAddReaction: 'Error al agregar reacción',
   noMessagesYet: 'Aún no hay mensajes',
-  // Profile and Auth strings
-  saveChanges: 'Guardar Cambios',
-  saving: 'Guardando...',
-  editPicture: 'Editar Foto',
-  uploading: 'Subiendo...',
   deletePicture: 'Eliminar Foto',
   deleteAccount: 'Eliminar Cuenta',
-  emailCannotBeChanged: 'El correo no se puede cambiar',
   enterFirstName: 'Ingresa tu nombre',
   enterLastName: 'Ingresa tu apellido',
   enterPhoneNumber: 'Ingresa tu número de teléfono',
-  phoneNumberWillBeVerified: 'El número de teléfono se verificará más tarde',
   welcomeBack: '¡Bienvenido de nuevo!',
   signInToAccount: 'Inicia sesión en tu cuenta',
   signingIn: 'Iniciando sesión...',
@@ -685,8 +671,6 @@ const zh: LocalizationStrings = {
   mustBeLoggedInToCreateGroup: '您必须登录才能创建群组',
   groupCreatedSuccessfully: '群组创建成功！',
   failedToCreateGroup: '创建群组失败，请重试。',
-  success: '成功',
-  done: '完成',
   searchUsers: '搜索用户',
   groupMembers: '群组成员',
   admin: '管理员',
@@ -726,7 +710,6 @@ const zh: LocalizationStrings = {
   clearCacheError: '清除缓存失败',
   cancel: '取消',
   clear: '清除',
-  success: '成功',
   error: '错误',
   
   // Voice Messages
@@ -738,6 +721,9 @@ const zh: LocalizationStrings = {
   transcription: '转录',
   voiceTranscription: '语音转录',
   noTranscriptionAvailable: '无转录可用',
+  voiceMessagePreview: '语音消息预览',
+  reRecord: '重新录制',
+  sending: '发送中...',
   
   // Notifications
   newMessage: '新消息',
@@ -747,12 +733,12 @@ const zh: LocalizationStrings = {
   // Common
   loading: '加载中...',
   retry: '重试',
-  done: '完成',
-  back: '返回',
   next: '下一步',
   save: '保存',
   delete: '删除',
   edit: '编辑',
+  success: '成功',
+  updateSettingError: '更新设置失败，请重试。',
   searchByEmail: '按邮箱搜索...',
   close: '关闭',
   yes: '是',
@@ -768,18 +754,11 @@ const zh: LocalizationStrings = {
   failedToSendVoiceMessage: '发送语音消息失败',
   failedToAddReaction: '添加反应失败',
   noMessagesYet: '暂无消息',
-  // Profile and Auth strings
-  saveChanges: '保存更改',
-  saving: '保存中...',
-  editPicture: '编辑照片',
-  uploading: '上传中...',
   deletePicture: '删除照片',
   deleteAccount: '删除账户',
-  emailCannotBeChanged: '邮箱无法更改',
   enterFirstName: '输入您的名字',
   enterLastName: '输入您的姓氏',
   enterPhoneNumber: '输入您的电话号码',
-  phoneNumberWillBeVerified: '电话号码稍后将进行验证',
   welcomeBack: '欢迎回来！',
   signInToAccount: '登录您的账户',
   signingIn: '登录中...',

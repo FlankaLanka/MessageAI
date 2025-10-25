@@ -92,7 +92,11 @@ export default function ProfileModal({
                   {user.phoneNumber}
                 </Text>
               )}
-              <Text style={[styles.userStatus, isSmallScreen && styles.userStatusSmall]}>
+              <Text style={[
+                styles.userStatus, 
+                isSmallScreen && styles.userStatusSmall,
+                isOnline ? styles.onlineStatus : styles.offlineStatus
+              ]}>
                 {isOnline ? t('online') : t('offline')}
               </Text>
             </View>
@@ -220,11 +224,16 @@ const styles = StyleSheet.create({
   },
   userStatus: {
     fontSize: 14,
-    color: '#4CAF50',
     fontWeight: '600',
   },
   userStatusSmall: {
     fontSize: 12,
+  },
+  onlineStatus: {
+    color: '#4CAF50', // Green for online
+  },
+  offlineStatus: {
+    color: '#9E9E9E', // Gray for offline
   },
   actions: {
     width: '100%',

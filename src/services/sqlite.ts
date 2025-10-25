@@ -1,5 +1,22 @@
-import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 import { Message, User } from '../types';
+
+// Platform-specific SQLite import
+let SQLite: any;
+if (Platform.OS !== 'web') {
+  SQLite = require('expo-sqlite');
+} else {
+  // Mock SQLite for web platform
+  SQLite = {
+    openDatabaseAsync: () => Promise.resolve(null),
+    SQLiteDatabase: class MockDatabase {
+      execAsync = () => Promise.resolve();
+      getAllAsync = () => Promise.resolve([]);
+      getFirstAsync = () => Promise.resolve(null);
+      runAsync = () => Promise.resolve({ changes: 0, lastInsertRowId: 0 });
+    }
+  };
+}
 
 class SQLiteService {
   public db: SQLite.SQLiteDatabase | null = null;

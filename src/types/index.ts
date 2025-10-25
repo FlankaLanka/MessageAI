@@ -13,6 +13,9 @@ export interface User {
   isDeleted?: boolean;
   defaultLanguage?: string;  // User's default translation language
   translationMode?: 'manual' | 'auto' | 'advanced' | 'auto-advanced';  // User's translation mode preference
+  translationCacheEnabled?: boolean;  // Whether to use translation cache
+  smartSuggestionsUseRAG?: boolean;  // Whether to use RAG context for smart suggestions
+  smartSuggestionsIncludeOtherLanguage?: boolean;  // Whether to include suggestions in other person's language
   createdAt: number;
   updatedAt: number;
 }

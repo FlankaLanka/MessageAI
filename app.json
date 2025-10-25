@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "projectId": "00000000-0000-0000-0000-000000000000",
+    "scheme": "messageai",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -40,8 +40,15 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "77451125-bd51-4544-a31b-f3a691623332"
       }
+    },
+    "owner": "flankalanka",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/77451125-bd51-4544-a31b-f3a691623332"
     }
   }
 }

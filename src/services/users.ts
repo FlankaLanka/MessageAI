@@ -45,6 +45,9 @@ export class UserService {
           isDeleted: data.isDeleted || false,
           defaultLanguage: data.defaultLanguage || 'EN',
           translationMode: data.translationMode || 'manual',
+          translationCacheEnabled: data.translationCacheEnabled !== undefined ? data.translationCacheEnabled : true,
+          smartSuggestionsUseRAG: data.smartSuggestionsUseRAG !== undefined ? data.smartSuggestionsUseRAG : true,
+          smartSuggestionsIncludeOtherLanguage: data.smartSuggestionsIncludeOtherLanguage !== undefined ? data.smartSuggestionsIncludeOtherLanguage : true,
           createdAt: data.createdAt || Date.now(),
           updatedAt: data.updatedAt || Date.now(),
         } as User;
@@ -60,7 +63,9 @@ export class UserService {
   static async updateUserProfile(uid: string, updates: Partial<User>): Promise<void> {
     try {
       console.log('Updating user profile:', uid, updates);
+      console.log('Firestore instance:', { firestore, type: typeof firestore });
       const userRef = doc(firestore, 'users', uid);
+      console.log('User reference created:', userRef);
       
       // Check if document exists first
       const userSnap = await getDoc(userRef);
