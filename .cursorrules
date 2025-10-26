@@ -1,0 +1,221 @@
+# MessageAI - Project Intelligence
+
+## Project Overview
+MessageAI is a cross-platform messaging app built with React Native + Expo and Firebase. The project emphasizes offline resilience, real-time sync, and production-quality user experience.
+
+## Key Technical Patterns
+
+### 1. Offline-First Architecture
+- Always implement optimistic UI updates
+- Queue messages in SQLite when offline
+- Auto-sync on network reconnection
+- Handle conflict resolution gracefully
+
+### 2. Real-time State Management
+- Use Zustand for global state
+- Implement proper selectors to prevent unnecessary re-renders
+- Handle real-time subscriptions with proper cleanup
+- Manage loading states and error states
+
+### 3. Firebase Integration Patterns
+- Use Firestore for primary data storage
+- Use Realtime Database for presence and typing
+- Implement proper security rules
+- Handle authentication state changes
+
+### 4. Cross-platform Considerations
+- Test on both iOS and Android regularly
+- Use Expo's cross-platform APIs
+- Handle platform-specific differences
+- Ensure consistent behavior across platforms
+
+## Development Workflow
+
+### 1. Feature Development
+- Build vertically - complete one feature at a time
+- Test each feature with real devices
+- Update memory bank after each major milestone
+- Focus on reliability and offline resilience
+
+### 2. Testing Strategy
+- Test offline scenarios extensively
+- Validate real-time sync between devices
+- Test network interruption scenarios
+- Verify push notifications work
+
+### 3. Code Organization
+- Use TypeScript for type safety
+- Implement proper error handling
+- Follow React Native best practices
+- Keep components focused and reusable
+
+## Critical Implementation Paths
+
+### 1. Message Flow
+```
+User types → Optimistic UI → SQLite cache → Firestore → Status update
+```
+
+### 2. Offline Handling
+```
+Network loss → Queue in SQLite → Network restore → Sync queued messages
+```
+
+### 3. Authentication Flow
+```
+User signs in → Firebase Auth → Create profile → Store in Firestore
+```
+
+### 4. Group Management Flow
+```
+Create group → Add participants → Set permissions → Sync to Firestore
+```
+
+### 5. Notification Flow
+```
+Message sent → Check mute status → Send push notification → Update badge
+```
+
+### 6. Chat Management Flow
+```
+Swipe action → Check permissions → Delete/Leave/Mute → Update UI
+```
+
+### 7. Swipe Gesture Flow
+```
+Swipe left → Show mute button → Handle mute/unmute action
+Swipe right → Show delete/leave button → Handle deletion/leave action
+```
+
+## Known Challenges
+
+### 1. Offline Complexity
+- Managing message queue during network interruptions
+- Handling conflict resolution
+- Ensuring messages don't get lost
+
+### 2. Real-time Performance
+- Optimizing Firestore subscriptions
+- Managing large message histories
+- Handling rapid message updates
+
+### 3. Cross-platform Consistency
+- Ensuring behavior is identical on iOS and Android
+- Handling platform-specific features
+- Managing different screen sizes and orientations
+
+## Project Preferences
+
+### 1. Code Style
+- Use TypeScript for all new code
+- Implement proper error handling
+- Follow React Native best practices
+- Keep components focused and reusable
+
+### 2. Testing Approach
+- Test on real devices, not just simulators
+- Focus on offline scenarios
+- Validate cross-platform behavior
+- Test with poor network conditions
+
+### 3. Documentation
+- Update memory bank after each milestone
+- Document complex implementation decisions
+- Keep progress tracking up to date
+- Record lessons learned
+
+## Evolution of Decisions
+
+### 1. State Management
+- **Initial**: Considered Redux
+- **Decision**: Zustand for simplicity and performance
+- **Rationale**: Lighter weight, better TypeScript support
+
+### 2. Database Strategy
+- **Initial**: Considered local-first with sync
+- **Decision**: Firebase primary with SQLite caching
+- **Rationale**: Real-time sync with offline resilience
+
+### 3. UI Framework
+- **Initial**: Considered react-native-gifted-chat
+- **Decision**: Custom simplified chat implementation
+- **Rationale**: Avoided complex native dependencies, better Expo Go compatibility
+
+### 4. Navigation
+- **Initial**: Considered React Navigation
+- **Decision**: Simple state-based navigation
+- **Rationale**: Simpler implementation, better for MVP
+
+### 5. Responsive Design
+- **Initial**: Basic styling
+- **Decision**: SafeAreaView + responsive design
+- **Rationale**: Better user experience across all device types
+
+## Tool Usage Patterns
+
+### 1. Development Tools
+- Use Expo CLI for development and building
+- Use Firebase CLI for backend configuration
+- Use EAS Build for production builds
+- Use Expo Go for testing
+
+### 2. Testing Tools
+- Use real devices for testing
+- Use Firebase emulators for local development
+- Use Expo Go for quick testing
+- Use EAS Build for production testing
+
+### 3. Deployment Tools
+- Use EAS Build for app store builds
+- Use Firebase for backend deployment
+- Use Expo Go for development testing
+- Use TestFlight/Play Console for beta testing
+
+## Project Intelligence
+
+### 1. Critical Success Factors
+- Offline resilience is paramount
+- Real-time sync must be reliable
+- Cross-platform consistency is essential
+- User experience must be smooth
+- Responsive design for all device types
+
+### 2. Common Pitfalls to Avoid
+- Don't ignore offline scenarios
+- Don't skip cross-platform testing
+- Don't forget about performance optimization
+- Don't neglect error handling
+- Don't ignore safe area requirements
+- Don't use complex native dependencies in Expo Go
+
+### 3. Best Practices
+- Always implement optimistic UI
+- Test with poor network conditions
+- Handle authentication state changes
+- Implement proper cleanup for subscriptions
+- Use SafeAreaView for all screens
+- Test on real devices with different screen sizes
+
+### 4. Current Implementation Status
+- ✅ **Authentication**: Email/password + Google sign-in working
+- ✅ **Real-time Chat**: Firestore integration with optimistic UI
+- ✅ **Responsive UI**: Safe area support and responsive design
+- ✅ **State Management**: Zustand with TypeScript
+- ✅ **Error Handling**: Comprehensive error handling and user feedback
+- ✅ **Offline Support**: SQLite caching with automatic sync
+- ✅ **Group Chats**: Full group functionality with creation and management
+- ✅ **Push Notifications**: Expo notifications with permissions and muting
+- ✅ **Chat Management**: iPhone-style swipe actions with delete and mute
+- ✅ **Firestore Optimization**: Proper indexes and error handling
+- ✅ **Swipe Gesture Improvements**: Enhanced mute button positioning and gesture responsiveness
+- ✅ **User Profile System**: Complete profile management with image upload and phone validation
+- ✅ **Bottom Tab Navigation**: Messages and Profile tabs with proper state management
+- ✅ **Online Status Indicators**: Real-time presence with green dots on profile pictures
+- ✅ **Profile Viewing**: iPhone-style interface with profile pictures in chat headers
+- ✅ **Account Management**: Profile editing, phone validation, and soft delete functionality
+- ✅ **Error Handling**: Fixed document existence issues and improved debugging
+- ✅ **1-on-1 Chat System**: Complete direct messaging with user search and chat creation
+- ✅ **User Search**: Real-time user search with online status indicators
+- ✅ **Account Deletion Security**: Proper handling of Firebase re-authentication requirements
+- ✅ **Dependency Management**: Removed external dependencies for better compatibility
+
