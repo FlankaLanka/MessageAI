@@ -10,6 +10,7 @@ import { notificationService } from './src/api/notifications';
 import { presenceService } from './src/api/presence';
 import { networkService } from './src/api/network';
 import { localizationService } from './src/api/localization';
+import { audioService } from './src/api/audio';
 import AuthScreen from './src/screens/auth/AuthScreen';
 import ChatListScreen from './src/screens/chat/ChatListScreen';
 import SimpleChatScreen from './src/screens/chat/SimpleChatScreen';
@@ -30,6 +31,7 @@ export default function App() {
     syncService.initialize().catch(console.error);
     notificationService.initialize().catch(console.error);
     localizationService.initialize().catch(console.error);
+    audioService.initialize().catch(console.error);
     
     // Initialize network service (this is critical for presence to work)
     console.log('🌐 Initializing network service');

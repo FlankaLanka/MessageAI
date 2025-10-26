@@ -44,6 +44,9 @@ interface AppState {
   addMessage: (message: Message) => void;
   updateMessage: (messageId: string, updates: Partial<Message>) => void;
   updateChatLastMessage: (chatId: string, message: Message) => void;
+  removeChat: (chatId: string) => void;
+  clearMessages: (chatId: string) => void;
+  clearAllData: () => void;
   setGroups: (groups: Group[]) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -161,6 +164,64 @@ export const useStore = create<AppState>((set) => ({
         : chat
     )
   })),
+  
+  // Remove a chat from the store
+  removeChat: (chatId) => set((state) => ({
+    chats: state.chats.filter(chat => chat.id !== chatId),
+    currentChat: state.currentChat?.id === chatId ? null : state.currentChat
+  })),
+  
+  // Clear messages for a specific chat
+  clearMessages: (chatId) => set((state) => ({
+    messages: state.messages.filter(message => message.chatId !== chatId),
+    // Also clear translation-related caches for this chat
+    translationPreferences: new Map([...state.translationPreferences].filter(([messageId, _]) => {
+      // Find the message to check its chatId
+      const message = state.messages.find(m => m.id === messageId);
+      return message?.chatId !== chatId;
+    })),
+    translationCache: new Map([...state.translationCache].filter(([textHash, _]) => {
+      // We can't easily filter translation cache by chatId, so we'll clear it entirely
+      // This is acceptable since translation cache is not critical for chat deletion
+      return false;
+    })),
+    culturalHintCache: new Map([...state.culturalHintCache].filter(([textHash, _]) => {
+      // Same for cultural hints cache
+      return false;
+    })),
+    intelligentProcessingCache: new Map([...state.intelligentProcessingCache].filter(([textHash, _]) => {
+      // Same for intelligent processing cache
+      return false;
+    })),
+    translatingMessages: new Set([...state.translatingMessages].filter(messageId => {
+      // Find the message to check its chatId
+      const message = state.messages.find(m => m.id === messageId);
+      return message?.chatId !== chatId;
+    })),
+    translationErrors: new Map([...state.translationErrors].filter(([messageId, _]) => {
+      // Find the message to check its chatId
+      const message = state.messages.find(m => m.id === messageId);
+      return message?.chatId !== chatId;
+    }))
+  })),
+  
+  // Clear all data (useful for logout)
+  clearAllData: () => set({
+    user: null,
+    isAuthenticated: false,
+    chats: [],
+    currentChat: null,
+    messages: [],
+    groups: [],
+    translationPreferences: new Map(),
+    translationCache: new Map(),
+    culturalHintCache: new Map(),
+    intelligentProcessingCache: new Map(),
+    translatingMessages: new Set(),
+    translationErrors: new Map(),
+    error: null
+  }),
+  
   setGroups: (groups) => set({ groups }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),

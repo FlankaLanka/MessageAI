@@ -1,6 +1,6 @@
-import { ref, set, onValue, off, serverTimestamp } from 'firebase/database';
+import { ref, set, onValue, off, serverTimestamp, onDisconnect } from 'firebase/database';
 import { database } from './firebase';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import { networkService } from './network';
 
 export interface PresenceData {
@@ -25,28 +25,120 @@ class PresenceService {
   private typingTimeouts: Map<string, NodeJS.Timeout> = new Map();
   private appState: AppStateStatus = 'active';
   private presenceCheckInterval: NodeJS.Timeout | null = null;
+  private lastPresenceUpdate: number = 0;
+  private presenceUpdateDebounce: NodeJS.Timeout | null = null;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private presenceFreshnessIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private lastSeenCache: Map<string, number> = new Map();
+  private lastEmittedState: Map<string, 'online' | 'offline'> = new Map();
+
+  // Heartbeat configuration
+  private static readonly HEARTBEAT_INTERVAL_MS = 3000; // 3 seconds
+  private static readonly ONLINE_GRACE_MS = 3000; // Consider online if lastSeen within 9s
 
   constructor() {
     console.log('🏗️ Initializing PresenceService...');
+    this.setupFirebaseConnectionMonitor();
     this.setupAppStateListener();
     this.setupNetworkListener();
     this.setupPeriodicPresenceCheck();
     console.log('✅ PresenceService initialized');
   }
 
+  // Start periodic heartbeat updates while app is active and user is logged in
+  private startHeartbeat(): void {
+    if (!this.userUid) return;
+    if (this.heartbeatInterval) return; // already running
+
+    const beat = async () => {
+      try {
+        if (!this.userUid) return;
+        // Only beat if app is active
+        if (this.appState !== 'active') return;
+        const userStatusRef = ref(database, `status/${this.userUid}`);
+        await set(userStatusRef, {
+          state: 'online',
+          lastSeen: serverTimestamp(),
+        });
+        this.isOnline = true;
+        this.lastPresenceUpdate = Date.now();
+      } catch (error) {
+        console.warn('⚠️ Heartbeat failed:', error);
+      }
+    };
+
+    // Run immediately, then on interval
+    void beat();
+    this.heartbeatInterval = setInterval(beat, PresenceService.HEARTBEAT_INTERVAL_MS);
+    console.log('❤️ Heartbeat started');
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+      console.log('🛑 Heartbeat stopped');
+    }
+  }
+
+  // Monitor Firebase Realtime Database connection state
+  // This is the CORE of the presence system - it's server-authoritative
+  private setupFirebaseConnectionMonitor(): void {
+    console.log('🔌 Setting up Firebase connection monitor (SERVER-AUTHORITATIVE)...');
+    const connectedRef = ref(database, '.info/connected');
+    
+    onValue(connectedRef, async (snapshot) => {
+      const isFirebaseConnected = snapshot.val() === true;
+      console.log('🔌 Firebase connection state changed:', {
+        connected: isFirebaseConnected,
+        userUid: this.userUid,
+        appState: this.appState,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (isFirebaseConnected && this.userUid) {
+        console.log('🔌 Firebase CONNECTED - Setting up presence');
+        
+        const userStatusRef = ref(database, `status/${this.userUid}`);
+        
+        // CRITICAL: Set up onDisconnect FIRST (before setting online)
+        // This ensures Firebase server will automatically set us offline when connection drops
+        try {
+          await onDisconnect(userStatusRef).set({
+            state: 'offline',
+            lastSeen: serverTimestamp(),
+          });
+          console.log('✅ onDisconnect handler registered on Firebase server');
+          
+          // Heartbeat will drive online updates; if active, ensure it is running
+          if (this.appState === 'active') {
+            this.startHeartbeat();
+          }
+        } catch (error) {
+          console.error('❌ Error setting up Firebase presence:', error);
+        }
+      } else {
+        console.log('🔌 Firebase DISCONNECTED or no user');
+        this.isOnline = false;
+        this.stopHeartbeat();
+      }
+    });
+    
+    console.log('✅ Firebase connection monitor set up (server-authoritative)');
+  }
+
   // Set user online (internal method - no conditions)
+  // Note: onDisconnect is now handled by the connection monitor
   private async setUserOnlineInternal(uid: string): Promise<void> {
     try {
       this.userUid = uid;
       this.isOnline = true;
       
       const userStatusRef = ref(database, `status/${uid}`);
-      await set(userStatusRef, {
-        state: 'online',
-        lastSeen: serverTimestamp(),
-      });
-      
+      await set(userStatusRef, { state: 'online', lastSeen: serverTimestamp() });
       console.log('✅ User set online in Firebase');
+      // Ensure heartbeat is running while active
+      if (this.appState === 'active') this.startHeartbeat();
     } catch (error) {
       console.error('Error setting user online:', error);
       // Don't throw error - network issues shouldn't crash the app
@@ -66,6 +158,7 @@ class PresenceService {
   async setUserOffline(uid: string): Promise<void> {
     try {
       this.isOnline = false;
+      this.stopHeartbeat();
       
       const userStatusRef = ref(database, `status/${uid}`);
       await set(userStatusRef, {
@@ -83,10 +176,10 @@ class PresenceService {
   async getUserPresence(uid: string): Promise<PresenceData | null> {
     try {
       const userStatusRef = ref(database, `status/${uid}`);
-      const snapshot = await new Promise((resolve, reject) => {
-        onValue(userStatusRef, (snapshot) => {
+      const snapshot = await new Promise<any>((resolve) => {
+        onValue(userStatusRef, (snap) => {
           off(userStatusRef);
-          resolve(snapshot);
+          resolve(snap);
         }, { onlyOnce: true });
       });
       
@@ -113,22 +206,45 @@ class PresenceService {
     try {
       const userStatusRef = ref(database, `status/${uid}`);
       
+      const emitPresence = (lastSeen: number) => {
+        const isFresh = Date.now() - lastSeen <= PresenceService.ONLINE_GRACE_MS;
+        const nextState: 'online' | 'offline' = isFresh ? 'online' : 'offline';
+        const prevState = this.lastEmittedState.get(uid);
+        this.lastEmittedState.set(uid, nextState);
+        callback({ state: nextState, lastSeen });
+      };
+
       const listener = onValue(userStatusRef, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.val();
-          const presence: PresenceData = {
-            state: data.state || 'offline',
-            lastSeen: data.lastSeen || Date.now(),
-          };
-          callback(presence);
+          const lastSeen: number = data.lastSeen || Date.now();
+          this.lastSeenCache.set(uid, lastSeen);
+          emitPresence(lastSeen);
         } else {
           // User has no presence data, assume offline
-          callback({
-            state: 'offline',
-            lastSeen: Date.now(),
-          });
+          const now = Date.now();
+          this.lastSeenCache.set(uid, now);
+          this.lastEmittedState.set(uid, 'offline');
+          callback({ state: 'offline', lastSeen: now });
         }
       });
+
+      // Start freshness interval to derive offline without server writes
+      if (this.presenceFreshnessIntervals.has(uid)) {
+        clearInterval(this.presenceFreshnessIntervals.get(uid)!);
+      }
+      const interval = setInterval(() => {
+        const cached = this.lastSeenCache.get(uid);
+        if (cached == null) return;
+        const isFresh = Date.now() - cached <= PresenceService.ONLINE_GRACE_MS;
+        const nextState: 'online' | 'offline' = isFresh ? 'online' : 'offline';
+        const prevState = this.lastEmittedState.get(uid);
+        if (prevState !== nextState) {
+          this.lastEmittedState.set(uid, nextState);
+          callback({ state: nextState, lastSeen: cached });
+        }
+      }, 1000);
+      this.presenceFreshnessIntervals.set(uid, interval);
 
       // Store listener for cleanup
       this.listeners.set(uid, callback);
@@ -137,6 +253,12 @@ class PresenceService {
       return () => {
         off(userStatusRef, 'value', listener);
         this.listeners.delete(uid);
+        if (this.presenceFreshnessIntervals.has(uid)) {
+          clearInterval(this.presenceFreshnessIntervals.get(uid)!);
+          this.presenceFreshnessIntervals.delete(uid);
+        }
+        this.lastSeenCache.delete(uid);
+        this.lastEmittedState.delete(uid);
       };
     } catch (error) {
       console.error('Error subscribing to user presence:', error);
@@ -172,15 +294,16 @@ class PresenceService {
   async getOnlineStatus(uid: string): Promise<boolean> {
     try {
       const userStatusRef = ref(database, `status/${uid}`);
-      const snapshot = await new Promise((resolve, reject) => {
-        onValue(userStatusRef, (snapshot) => {
-          resolve(snapshot);
+      const snapshot = await new Promise<any>((resolve) => {
+        onValue(userStatusRef, (snap) => {
+          resolve(snap);
         }, { onlyOnce: true });
-      }) as any;
+      });
       
       if (snapshot.exists()) {
         const data = snapshot.val();
-        return data.state === 'online';
+        const lastSeen: number = data.lastSeen || 0;
+        return Date.now() - lastSeen <= PresenceService.ONLINE_GRACE_MS;
       }
       return false;
     } catch (error) {
@@ -191,7 +314,9 @@ class PresenceService {
 
   // Get current user's online status (considering network and app state)
   getCurrentUserOnlineStatus(): boolean {
-    return this.isOnline && this.shouldBeOnline();
+    // Local view: consider online if we've updated recently and conditions allow
+    const fresh = Date.now() - this.lastPresenceUpdate <= PresenceService.ONLINE_GRACE_MS;
+    return fresh && this.shouldBeOnline();
   }
 
   // Manually trigger presence update (useful for debugging)
@@ -342,29 +467,95 @@ class PresenceService {
   // Setup app state listener
   private setupAppStateListener(): void {
     console.log('📱 Setting up app state listener...');
+    
+    // Get initial app state
+    this.appState = AppState.currentState;
+    console.log('📱 Initial app state:', this.appState);
+    
     this.appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      console.log('📱 App state changed:', this.appState, '->', nextAppState);
+      const previousState = this.appState;
+      const timestamp = Date.now();
+      console.log('📱 [Expo Go] App state changed:', {
+        from: previousState,
+        to: nextAppState,
+        timestamp: new Date(timestamp).toISOString(),
+        platform: Platform.OS
+      });
+      
       this.appState = nextAppState;
       
       // Handle background/foreground transitions
-      if (this.appState === 'background' || this.appState === 'inactive') {
-        console.log('📱 App went to background/inactive - forcing offline');
-        // Force immediate offline when app goes to background
-        if (this.userUid && this.isOnline) {
-          this.setUserOffline(this.userUid);
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        console.log('📱 App went to BACKGROUND/INACTIVE - stopping heartbeat and setting offline');
+        
+        // Cancel any pending updates
+        if (this.presenceUpdateDebounce) {
+          clearTimeout(this.presenceUpdateDebounce);
+          this.presenceUpdateDebounce = null;
         }
-      } else if (this.appState === 'active') {
-        console.log('📱 App became active - checking online status');
-        // Check if we should be online when app becomes active
-        this.updatePresenceStatus();
+        
+        // Stop heartbeat and set offline in Firebase immediately
+        this.stopHeartbeat();
+        if (this.userUid) {
+          const userStatusRef = ref(database, `status/${this.userUid}`);
+          set(userStatusRef, {
+            state: 'offline',
+            lastSeen: serverTimestamp(),
+          }).then(() => {
+            this.isOnline = false;
+            console.log('✅ User set OFFLINE (app backgrounded)');
+          }).catch(err => {
+            console.error('❌ Error setting offline on background:', err);
+          });
+        }
+      } else if (nextAppState === 'active') {
+        console.log('📱 App became ACTIVE - starting heartbeat and setting online');
+        
+        // Cancel any pending offline updates
+        if (this.presenceUpdateDebounce) {
+          clearTimeout(this.presenceUpdateDebounce);
+          this.presenceUpdateDebounce = null;
+        }
+        
+        // Start heartbeat and set online in Firebase immediately (if network is available)
+        if (this.userUid && previousState !== 'active') {
+          const networkState = networkService.getCurrentState();
+          if (networkState.isConnected) {
+            const userStatusRef = ref(database, `status/${this.userUid}`);
+            
+            // Re-register onDisconnect handler
+            onDisconnect(userStatusRef).set({
+              state: 'offline',
+              lastSeen: serverTimestamp(),
+            }).then(() => {
+              console.log('✅ onDisconnect re-registered');
+              
+              // Now set online
+              return set(userStatusRef, {
+                state: 'online',
+                lastSeen: serverTimestamp(),
+              });
+            }).then(() => {
+              this.isOnline = true;
+              this.startHeartbeat();
+              console.log('✅ User set ONLINE (app foregrounded)');
+            }).catch(err => {
+              console.error('❌ Error setting online on foreground:', err);
+            });
+          } else {
+            console.log('⚠️ Network not available, staying offline');
+          }
+        }
       }
     });
-    console.log('✅ App state listener set up');
+    console.log('✅ App state listener set up for Expo Go');
   }
 
   // Setup network listener
+  // Note: Network disconnections are primarily handled by Firebase's onDisconnect
+  // This is just for additional logging and immediate reconnection
   private setupNetworkListener(): void {
-    console.log('🌐 Setting up network listener...');
+    console.log('🌐 Setting up network listener (supplementary)...');
     this.networkSubscription = networkService.subscribe((networkState) => {
       console.log('🌐 Network state changed:', {
         isConnected: networkState.isConnected,
@@ -372,16 +563,16 @@ class PresenceService {
         type: networkState.type
       });
       
-      // If network is lost and user is online, force offline immediately
-      if (!networkState.isConnected && this.userUid && this.isOnline) {
-        console.log('🌐 Network lost - forcing offline immediately');
-        this.setUserOffline(this.userUid);
-      } else {
-        // Otherwise, use normal presence update logic
-        this.updatePresenceStatus();
+      // When network is restored and app is active, try to reconnect
+      if (networkState.isConnected && this.userUid && this.appState === 'active') {
+        console.log('🌐 Network restored - starting heartbeat');
+        this.startHeartbeat();
+      } else if (!networkState.isConnected) {
+        console.log('🌐 Network lost - stopping heartbeat (onDisconnect handles offline)');
+        this.stopHeartbeat();
       }
     });
-    console.log('✅ Network listener set up');
+    console.log('✅ Network listener set up (Firebase handles actual presence)');
   }
 
   // Setup periodic presence check to ensure accuracy
@@ -390,10 +581,12 @@ class PresenceService {
     this.presenceCheckInterval = setInterval(() => {
       if (this.userUid) {
         console.log('⏰ Periodic presence check');
-        this.updatePresenceStatus();
+        this.updatePresenceStatus().catch(err => {
+          console.error('Error in periodic presence check:', err);
+        });
       }
-    }, 10000); // Check every 10 seconds
-    console.log('✅ Periodic presence check set up');
+    }, 5000); // Check every 5 seconds for faster updates
+    console.log('✅ Periodic presence check set up (every 5 seconds)');
   }
 
   // Check if user should be online based on app state and network
@@ -451,6 +644,7 @@ class PresenceService {
       this.userUid = uid;
       // Use updatePresenceStatus to check network and app state
       await this.updatePresenceStatus();
+      if (this.shouldBeOnline()) this.startHeartbeat();
     } catch (error) {
       console.error('Error initializing presence:', error);
       throw error;
@@ -460,6 +654,13 @@ class PresenceService {
   // Cleanup
   async cleanup(): Promise<void> {
     console.log('🧹 Cleaning up presence service');
+    
+    // Clear any pending debounce timeout
+    if (this.presenceUpdateDebounce) {
+      clearTimeout(this.presenceUpdateDebounce);
+      this.presenceUpdateDebounce = null;
+    }
+    this.stopHeartbeat();
     
     // Force user offline before cleanup
     if (this.userUid) {
@@ -500,6 +701,7 @@ class PresenceService {
     this.userUid = null;
     this.isOnline = false;
     this.appState = 'active';
+    this.lastPresenceUpdate = 0;
     
     console.log('✅ Presence service cleanup completed');
   }

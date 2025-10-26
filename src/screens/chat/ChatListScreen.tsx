@@ -255,8 +255,8 @@ export default function ChatListScreen({ onNavigateToChat, onNavigateToCreateGro
         style={styles.chatList}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No chats yet</Text>
-            <Text style={styles.emptySubtext}>Start a conversation!</Text>
+            <Text style={styles.emptyText}>{t('noChatsYet')}</Text>
+            <Text style={styles.emptySubtext}>{t('startConversation')}</Text>
           </View>
         }
       />

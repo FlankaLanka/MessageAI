@@ -104,17 +104,6 @@ export default function AuthScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      const user = await AuthService.signInWithGoogle();
-    } catch (error: any) {
-      console.error('❌ Google sign in failed:', error);
-      showErrorAlert(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const renderSignInForm = () => (
     <View style={styles.form}>
@@ -149,14 +138,6 @@ export default function AuthScreen() {
         <Text style={styles.buttonText}>
           {isLoading ? t('signingIn') : t('signIn')}
         </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.button, styles.googleButton]}
-        onPress={handleGoogleSignIn}
-        disabled={isLoading}
-      >
-        <Text style={styles.googleButtonText}>{t('signInWithGoogle')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity
@@ -232,14 +213,6 @@ export default function AuthScreen() {
         <Text style={styles.buttonText}>
           {isLoading ? t('creatingAccount') : t('signUp')}
         </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.button, styles.googleButton]}
-        onPress={handleGoogleSignIn}
-        disabled={isLoading}
-      >
-        <Text style={styles.googleButtonText}>{t('signUpWithGoogle')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity
@@ -364,18 +337,8 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: '#007AFF',
   },
-  googleButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  googleButtonText: {
-    color: '#333',
     fontSize: 16,
     fontWeight: '600',
   },

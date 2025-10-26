@@ -231,28 +231,6 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleDebugPresence = async () => {
-    try {
-      const { presenceService } = await import('../../api/presence');
-      const { networkService } = await import('../../api/network');
-      
-      console.log('🔍 Debugging presence system...');
-      presenceService.debugCurrentState();
-      networkService.debugState();
-      
-      // Trigger both normal and force presence checks
-      await presenceService.forceUpdatePresence();
-      await presenceService.forcePresenceCheck();
-      
-      Alert.alert(
-        'Debug Info',
-        'Check console for presence and network debug information. Both normal and force presence checks triggered.',
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('Error debugging presence:', error);
-    }
-  };
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -579,20 +557,6 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.settingRow}
-            onPress={handleDebugPresence}
-            disabled={isSaving}
-          >
-            <View style={[styles.settingIconContainer, { backgroundColor: '#007AFF' }]}>
-              <Ionicons name="bug" size={20} color="#FFFFFF" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Debug Presence</Text>
-              <Text style={styles.settingSubtitle}>Check presence and network status</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
-          </TouchableOpacity>
 
         </View>
 

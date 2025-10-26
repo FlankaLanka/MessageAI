@@ -61,14 +61,15 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   const { t } = useLocalization();
   const { 
     user, 
-    messages, 
-    setMessages, 
     addMessage, 
     updateMessage, 
     updateChatLastMessage,
     defaultTranslationLanguage,
     translationMode
   } = useStore();
+  
+  // Use local state for messages instead of global state
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [chat, setChat] = useState<Chat | null>(null);
@@ -98,6 +99,11 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   
   // Image selection state
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  // Timer state for showing "sending" indicator after 1 second
+  const [showSendingIndicators, setShowSendingIndicators] = useState<Set<string>>(new Set());
+  const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  
   const waveAnimations = useRef([
     new Animated.Value(0.3),
     new Animated.Value(0.3),
@@ -106,6 +112,52 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   
   // Text input ref for focusing
   const textInputRef = useRef<TextInput>(null);
+  
+  // Timer effect for showing "sending" indicator after 1 second
+  useEffect(() => {
+    const optimisticMessages = messages.filter(msg => msg.isOptimistic);
+    const currentOptimisticIds = new Set(optimisticMessages.map(msg => msg.id));
+    
+    // Clean up timers and indicators for messages that are no longer optimistic
+    timersRef.current.forEach((timer, messageId) => {
+      if (!currentOptimisticIds.has(messageId)) {
+        clearTimeout(timer);
+        timersRef.current.delete(messageId);
+      }
+    });
+    
+    // Clean up sending indicators for messages that are no longer optimistic
+    setShowSendingIndicators(prev => {
+      const newSet = new Set(prev);
+      for (const id of prev) {
+        if (!currentOptimisticIds.has(id)) {
+          newSet.delete(id);
+        }
+      }
+      return newSet;
+    });
+    
+    // Set timers for new optimistic messages that don't already have timers
+    optimisticMessages.forEach(msg => {
+      if (!timersRef.current.has(msg.id)) {
+        console.log('⏰ Setting timer for optimistic message:', msg.id, 'type:', msg.audioUrl ? 'voice' : msg.imageUrl ? 'image' : 'text');
+        const timer = setTimeout(() => {
+          console.log('⏰ Timer fired for message:', msg.id, 'adding to sending indicators');
+          setShowSendingIndicators(prev => new Set(prev).add(msg.id));
+          timersRef.current.delete(msg.id);
+        }, 1000);
+        timersRef.current.set(msg.id, timer);
+      }
+    });
+  }, [messages]);
+  
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach(timer => clearTimeout(timer));
+      timersRef.current.clear();
+    };
+  }, []);
   
   // Translation handlers
   const handleTranslationComplete = (
@@ -325,7 +377,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     const optimisticMessages = currentMessages.filter(m => m.isOptimistic);
     const existingRealMessages = currentMessages.filter(m => !m.isOptimistic);
     
-    console.log('🔄 Processing message replacement:', {
+    console.log('🔄 INDIVIDUAL Processing message replacement:', {
       currentTotal: currentMessages.length,
       optimistic: optimisticMessages.length,
       existingReal: existingRealMessages.length,
@@ -338,23 +390,33 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
     // Find messages that are truly new (not in our existing real messages)
     const trulyNewMessages = newMessages.filter(msg => !existingRealMap.has(msg.id));
     
-    console.log('🆕 Truly new messages:', trulyNewMessages.length);
+    console.log('🆕 INDIVIDUAL Truly new messages:', trulyNewMessages.length);
     
     // Debug: Log available optimistic messages
-    console.log('🔍 Available optimistic messages:', optimisticMessages.map(opt => ({
+    console.log('🔍 INDIVIDUAL Available optimistic messages:', optimisticMessages.map(opt => ({
       id: opt.id,
       optimisticId: opt.optimisticId,
       text: opt.text,
       timestamp: opt.timestamp
     })));
     
-    // For each truly new message, check if it replaces an optimistic one
+    // For each truly new message, check if it replaces an optimistic one INDIVIDUALLY
     const replacedOptimisticIds = new Set<string>();
     const processedNewMessages: Message[] = [];
     
+    // Process each new message individually to ensure one-to-one replacement
+    // Track processed messages to prevent duplicates
+    const processedMessageIds = new Set<string>();
+    
     for (const newMsg of trulyNewMessages) {
+      // Skip if we've already processed this message
+      if (processedMessageIds.has(newMsg.id)) {
+        console.log('⚠️ INDIVIDUAL Skipping duplicate message:', newMsg.id);
+        continue;
+      }
+      processedMessageIds.add(newMsg.id);
       // Debug: Log the new message data to see what fields are available
-      console.log('🔍 New message from Firebase:', {
+      console.log('🔍 INDIVIDUAL New message from Firebase:', {
         id: newMsg.id,
         optimisticId: (newMsg as any).optimisticId,
         senderId: newMsg.senderId,
@@ -364,26 +426,29 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       });
       
       // Check if this new message has an optimisticId that matches any optimistic message
+      // Only match optimistic messages that haven't already been replaced
       const matchingOptimistic = optimisticMessages.find(opt => 
-        opt.optimisticId === (newMsg as any).optimisticId
+        opt.optimisticId === (newMsg as any).optimisticId && 
+        !replacedOptimisticIds.has(opt.id) // Don't replace already replaced messages
       );
       
       if (matchingOptimistic) {
-        console.log('🔄 Replacing optimistic message with real message:', {
+        console.log('🔄 INDIVIDUAL Replacing optimistic message with real message:', {
           optimisticId: matchingOptimistic.id,
           realId: newMsg.id,
           optimisticKey: (newMsg as any).optimisticId,
           text: newMsg.text,
           timestamp: newMsg.timestamp
         });
-        // Mark this optimistic message for removal
+        // Mark this SPECIFIC optimistic message for removal
         replacedOptimisticIds.add(matchingOptimistic.id);
         processedNewMessages.push(newMsg);
       } else {
-        console.log('❌ No matching optimistic message found for:', {
+        console.log('❌ INDIVIDUAL No matching optimistic message found for:', {
           newMsgId: newMsg.id,
           newMsgOptimisticId: (newMsg as any).optimisticId,
-          availableOptimisticIds: optimisticMessages.map(opt => opt.optimisticId)
+          availableOptimisticIds: optimisticMessages.map(opt => opt.optimisticId),
+          alreadyReplaced: Array.from(replacedOptimisticIds)
         });
         // This is a genuinely new message, not replacing an optimistic one
         processedNewMessages.push(newMsg);
@@ -409,11 +474,12 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       allMessages.unshift(...existingRealMessages);
     }
     
-    console.log('📊 Message replacement stats:', {
+    console.log('📊 INDIVIDUAL Message replacement stats:', {
       totalOptimistic: optimisticMessages.length,
       replaced: replacedOptimisticIds.size,
       remaining: remainingOptimistic.length,
-      finalTotal: allMessages.length
+      finalTotal: allMessages.length,
+      replacedIds: Array.from(replacedOptimisticIds)
     });
     
     // Sort by timestamp descending (newest first)
@@ -435,6 +501,22 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
   useEffect(() => {
     if (!user) return;
 
+    // Load initial messages first
+    const loadInitialMessages = async () => {
+      try {
+        console.log('📥 Loading initial messages for chat:', chatId);
+        const initialMessages = await MessageService.getMessages(chatId);
+        console.log('📥 Loaded initial messages:', initialMessages.length);
+        setMessages(initialMessages);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading initial messages:', error);
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialMessages();
+
     // Set up real-time listener for messages with offline support
     console.log('🔄 Setting up message listener in SimpleChatScreen for chat:', chatId);
     
@@ -445,19 +527,47 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         currentMessageCount: messages.length 
       });
       
-      // If this is a new chat (no current messages) and no new messages from Firebase,
-      // clear the local state to prevent old messages from persisting
+      // If we already have messages loaded and Firebase returns 0 messages,
+      // this might be a temporary disconnection - don't clear existing messages
       if (messages.length > 0 && newMessages.length === 0) {
-        console.log('🧹 Clearing old messages for new chat');
-        setMessages([]);
+        console.log('📨 Firebase returned 0 messages but we have local messages - keeping local messages');
+        return;
+      }
+      
+      // Only clear messages if this is truly a new chat (no messages loaded yet)
+      if (messages.length === 0 && newMessages.length === 0) {
+        console.log('🧹 No messages found for new chat');
         setIsLoading(false);
         return;
       }
       
-      // Filter and replace optimistic messages with real ones
-      const processedMessages = replaceOptimisticMessages(messages, newMessages);
+      // Filter and replace optimistic messages with real ones ONE BY ONE
+      // This ensures each optimistic message is replaced individually when its Firebase data arrives
+      console.log('🔄 INDIVIDUAL Processing batch of', newMessages.length, 'messages from Firebase');
+      let currentMessages = messages;
       
-      console.log('📨 Processed messages:', { 
+      // Process each new message individually to ensure one-by-one replacement
+      for (let i = 0; i < newMessages.length; i++) {
+        const singleNewMessage = newMessages[i];
+        console.log(`🔄 INDIVIDUAL Processing message ${i + 1}/${newMessages.length}:`, {
+          id: singleNewMessage.id,
+          optimisticId: (singleNewMessage as any).optimisticId,
+          text: singleNewMessage.text?.substring(0, 50)
+        });
+        
+        // Replace optimistic messages one at a time
+        currentMessages = replaceOptimisticMessages(currentMessages, [singleNewMessage]);
+        
+        console.log(`✅ INDIVIDUAL After processing message ${i + 1}:`, {
+          total: currentMessages.length,
+          optimistic: currentMessages.filter(m => m.isOptimistic).length,
+          real: currentMessages.filter(m => !m.isOptimistic).length
+        });
+      }
+      
+      const processedMessages = currentMessages;
+      
+      console.log('📨 INDIVIDUAL Final processed messages:', { 
         chatId, 
         processedCount: processedMessages.length,
         optimisticCount: processedMessages.filter(m => m.isOptimistic).length,
@@ -669,7 +779,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       }
       
       // Add optimistic message to local state immediately
-      addMessage(optimisticMessage);
+      setMessages(prev => [...prev, optimisticMessage].sort((a, b) => b.timestamp - a.timestamp));
       // Don't update chat last message for optimistic messages - they're temporary
       
       // Background operations (non-blocking)
@@ -714,7 +824,7 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
       );
       
       // Add optimistic message to local state immediately
-      addMessage(optimisticMessage);
+      setMessages(prev => [...prev, optimisticMessage].sort((a, b) => b.timestamp - a.timestamp));
       // Don't update chat last message for optimistic messages - they're temporary
       
       // Clear the recorded audio
@@ -1074,23 +1184,25 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
         
         {/* Voice Message Bubble */}
         {item.audioUrl ? (
-          <VoiceMessageBubble
-            audioUrl={item.audioUrl}
-            duration={item.audioDuration || 0}
-            isOwnMessage={isOwnMessage}
-            onPlay={() => handlePlayVoiceMessage(item.id, item.audioUrl!)}
-            onPause={() => handlePauseVoiceMessage()}
-            isPlaying={playingMessageId === item.id}
-            currentTime={0}
-            message={item}
-            senderName={isGroupChat ? senderName : undefined}
-            senderPhotoURL={item.senderPhotoURL}
-            chatMessages={messages} // Pass chat context for RAG analysis
-            messageTranslations={messageTranslations}
-            onTranslationComplete={handleTranslationComplete}
-            onCloseTranslation={handleCloseTranslation}
-            onReactionPress={handleMessageLongPress}
-          />
+          <>
+            <VoiceMessageBubble
+              audioUrl={item.audioUrl}
+              duration={item.audioDuration || 0}
+              isOwnMessage={isOwnMessage}
+              onPlay={() => handlePlayVoiceMessage(item.id, item.audioUrl!)}
+              onPause={() => handlePauseVoiceMessage()}
+              isPlaying={playingMessageId === item.id}
+              currentTime={0}
+              message={item}
+              senderName={isGroupChat ? senderName : undefined}
+              senderPhotoURL={item.senderPhotoURL}
+              chatMessages={messages} // Pass chat context for RAG analysis
+              messageTranslations={messageTranslations}
+              onTranslationComplete={handleTranslationComplete}
+              onCloseTranslation={handleCloseTranslation}
+              onReactionPress={handleMessageLongPress}
+            />
+          </>
         ) : item.imageUrl ? (
           /* Image Message Bubble */
           <View style={[
@@ -1140,8 +1252,14 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
                 <Text style={styles.timestamp}>
                   {new Date(item.timestamp).toLocaleTimeString()}
                 </Text>
+                {/* Show "sending..." indicator for optimistic image messages after 1 second */}
+                {item.isOptimistic && showSendingIndicators.has(item.id) && (
+                  <Text style={[styles.sendingIndicator, isOwnMessage ? styles.ownSendingIndicator : styles.otherSendingIndicator]}>
+                    sending...
+                  </Text>
+                )}
                 {/* Translation button for text portion only */}
-                {item.text && !messageTranslations[item.id] && (
+                {item.text && !messageTranslations[item.id] && !item.isOptimistic && (
                   <TranslationButton
                     messageId={item.id}
                     originalText={item.text}
@@ -1194,8 +1312,8 @@ export default function SimpleChatScreen({ chatId, onNavigateBack, onNavigateToU
                 <Text style={styles.timestamp}>
                   {new Date(item.timestamp).toLocaleTimeString()}
                 </Text>
-                {/* Show "sending..." indicator for optimistic messages */}
-                {item.isOptimistic && (
+                {/* Show "sending..." indicator for optimistic messages after 1 second */}
+                {item.isOptimistic && showSendingIndicators.has(item.id) && (
                   <Text style={[styles.sendingIndicator, isOwnMessage ? styles.ownSendingIndicator : styles.otherSendingIndicator]}>
                     sending...
                   </Text>

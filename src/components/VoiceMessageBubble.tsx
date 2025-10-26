@@ -14,6 +14,7 @@ import { audioService, AudioPlaybackStatus } from '../api/audio';
 import { MediaService } from '../api/media';
 import { Message, Translation } from '../types';
 import { simpleTranslationService } from '../api/simpleTranslation';
+import { voiceTranslationService } from '../api/voiceTranslation';
 import { useLocalization } from '../hooks/useLocalization';
 import { useStore } from '../store/useStore';
 import { TranslationButton } from './TranslationButton';
@@ -56,6 +57,13 @@ export default function VoiceMessageBubble({
   onCloseTranslation,
   onReactionPress
 }: VoiceMessageBubbleProps) {
+  
+  // CRITICAL: Block all network calls for optimistic messages
+  // Only block if it's truly optimistic (not just sending status)
+  const isOptimisticMessage = message?.isOptimistic === true;
+  if (isOptimisticMessage) {
+    console.log('🎤 BLOCKING all network calls for optimistic voice message:', message.id);
+  }
   const [isLoading, setIsLoading] = useState(false);
   const [localAudioUri, setLocalAudioUri] = useState<string | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<AudioPlaybackStatus>({
@@ -142,26 +150,60 @@ export default function VoiceMessageBubble({
   }, []);
 
   // Auto-transcribe voice message when component mounts
+  // IMPORTANT: Don't transcribe optimistic messages (they're still being uploaded)
   useEffect(() => {
     const autoTranscribe = async () => {
+      // CRITICAL: Block all network calls for optimistic messages
+      if (isOptimisticMessage) {
+        console.log('🎤 BLOCKING transcription for optimistic message:', message.id);
+        return;
+      }
       
-      if (message && !localTranscription && message.audioUrl) {
-        try {
-          const { voiceTranslationService } = await import('../api/voiceTranslation');
-          const result = await voiceTranslationService.transcribeVoiceMessage(message);
-          
-          // Update local transcription state
-          setLocalTranscription(result.text);
-        } catch (error) {
-          console.error('🎤 Auto-transcription failed:', error);
-          // Don't show error to user, just log it
-        }
-      } else {
+      // Also block if message is still being sent (not yet synced)
+      // Only block if it's a local file AND still sending
+      if (message?.status === 'sending' && message?.audioUrl?.startsWith('file://')) {
+        console.log('🎤 BLOCKING transcription for local file (still sending):', message.id);
+        return;
+      }
+      
+      // Skip if we already have transcription
+      if (localTranscription) {
+        return;
+      }
+      
+      // Skip if message doesn't have audio URL
+      if (!message || !message.audioUrl) {
+        return;
+      }
+      
+      // Skip if audio URL is a local file (not yet uploaded to Firebase)
+      if (message.audioUrl.startsWith('file://')) {
+        console.log('🎤 BLOCKING transcription for local file (not yet uploaded):', message.id);
+        return;
+      }
+      
+      // For recently synced messages, add a small delay to ensure audio is fully available
+      const messageAge = Date.now() - message.timestamp;
+      if (messageAge < 5000) { // If message is less than 5 seconds old (likely just synced)
+        console.log('🎤 Message recently synced, waiting 2 seconds before transcription:', message.id);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      try {
+        console.log('🎤 Starting transcription for message:', message.id);
+        const result = await voiceTranslationService.transcribeVoiceMessage(message);
+        
+        // Update local transcription state
+        setLocalTranscription(result.text);
+        console.log('🎤 Transcription completed for message:', message.id);
+      } catch (error) {
+        console.error('🎤 Auto-transcription failed:', error);
+        // Don't show error to user, just log it
       }
     };
 
     autoTranscribe();
-  }, [message, localTranscription]);
+  }, [message?.id, message?.audioUrl, message?.status, isOptimisticMessage, localTranscription]);
 
   // Auto-show transcription when it becomes available
   useEffect(() => {
@@ -178,6 +220,40 @@ export default function VoiceMessageBubble({
       message.text = localTranscription;
     }
   }, [localTranscription, message]);
+
+  // Manual transcription trigger for synced messages (offline-sent messages that are now synced)
+  useEffect(() => {
+    const triggerTranscriptionForSyncedMessage = async () => {
+      console.log('🎤 Checking transcription trigger for message:', {
+        id: message?.id,
+        audioUrl: message?.audioUrl,
+        isFirebaseUrl: message?.audioUrl?.startsWith('https://firebasestorage.googleapis.com/'),
+        hasTranscription: !!localTranscription,
+        isOptimistic: isOptimisticMessage,
+        status: message?.status
+      });
+      
+      // Check if this is a synced message that needs transcription
+      if (message?.audioUrl?.startsWith('https://firebasestorage.googleapis.com/') && 
+          !localTranscription && 
+          !isOptimisticMessage &&
+          message?.status === 'sent') {
+        console.log('🎤 Manual transcription trigger for synced message:', message.id);
+        
+        try {
+          const result = await voiceTranslationService.transcribeVoiceMessage(message);
+          setLocalTranscription(result.text);
+          console.log('🎤 Manual transcription completed for synced message:', message.id);
+        } catch (error) {
+          console.error('🎤 Manual transcription failed for synced message:', error);
+        }
+      } else {
+        console.log('🎤 Transcription trigger conditions not met for message:', message?.id);
+      }
+    };
+
+    triggerTranscriptionForSyncedMessage();
+  }, [message?.id, message?.audioUrl, message?.status, isOptimisticMessage, localTranscription]);
 
   // Update current time from props
   useEffect(() => {
@@ -287,6 +363,12 @@ export default function VoiceMessageBubble({
           <Text style={styles.timestamp}>
             {new Date(message?.timestamp || Date.now()).toLocaleTimeString()}
           </Text>
+          {/* Show "sending..." indicator for optimistic voice messages */}
+          {message?.isOptimistic && (
+            <Text style={[styles.sendingIndicator, isOwnMessage ? styles.ownSendingIndicator : styles.otherSendingIndicator]}>
+              sending...
+            </Text>
+          )}
           {/* Translation Button - same as text messages */}
           {message && localTranscription && !messageTranslations[message.id] && (
             <>
@@ -409,6 +491,20 @@ const styles = StyleSheet.create({
   },
   otherDuration: {
     color: '#666',
+  },
+  // Sending indicator styles
+  sendingIndicator: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginLeft: 8,
+  },
+  ownSendingIndicator: {
+    color: '#fff',
+    opacity: 0.8,
+  },
+  otherSendingIndicator: {
+    color: '#666',
+    opacity: 0.8,
   },
   // Inline voice actions styles
   voiceActionsContainer: {

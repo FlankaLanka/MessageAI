@@ -58,6 +58,15 @@ export class VoiceTranslationService {
           throw new Error('No audio URL available for transcription');
         }
         
+        // Skip transcription for local files (not yet uploaded)
+        if (message.audioUrl.startsWith('file://')) {
+          throw new Error('Cannot transcribe local file - audio not yet uploaded to Firebase');
+        }
+        
+        // Skip transcription for optimistic messages
+        if (message.isOptimistic) {
+          throw new Error('Cannot transcribe optimistic message - audio not yet uploaded');
+        }
         
         // For Firebase Storage URLs, we need to download the file first
         let audioUri = message.audioUrl;

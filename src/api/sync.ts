@@ -59,10 +59,19 @@ class SyncService {
   }
 
   async syncQueuedMessages() {
-    if (this.isSyncing || !networkService.isOnline()) {
+    if (this.isSyncing) {
+      console.log('🔄 Sync already in progress, skipping');
       return;
     }
 
+    // More robust network check
+    const networkState = networkService.getCurrentState();
+    if (!networkState.isConnected || networkState.isInternetReachable === false) {
+      console.log('🔄 Network not available, skipping sync:', networkState);
+      return;
+    }
+
+    console.log('🔄 Starting sync with network state:', networkState);
     this.isSyncing = true;
     this.retryCount = 0;
 
@@ -98,13 +107,17 @@ class SyncService {
 
   private async syncMessage(message: Message) {
     try {
+      console.log(`🔄 Syncing message ${message.id} (type: ${message.audioUrl ? 'voice' : message.imageUrl ? 'image' : 'text'})`);
+      
       // Handle image messages that need upload
       if (message.imageUrl && !message.imageUrl.startsWith('http')) {
         // This is a local image URI that needs to be uploaded
+        // Generate a proper message ID for the storage path (not the optimistic ID)
+        const storageMessageId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const { MediaService } = await import('./media');
         const uploadedImageUrl = await MediaService.uploadChatImage(
           message.chatId,
-          message.id,
+          storageMessageId,
           message.imageUrl
         );
         
@@ -117,15 +130,59 @@ class SyncService {
         // Sync the updated message
         const sentMessage = await MessageService.syncExistingMessage(updatedMessage);
         await platformStorageService.saveMessage(sentMessage);
+      } else if (message.audioUrl && !message.audioUrl.startsWith('http')) {
+        // Handle voice messages that need upload
+        console.log(`🎤 Uploading voice message ${message.id} to Firebase Storage`);
+        const storageMessageId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const { MediaService } = await import('./media');
+        const uploadedAudioUrl = await MediaService.uploadVoiceMessage(
+          message.chatId,
+          storageMessageId,
+          message.audioUrl
+        );
+        
+        // Update message with uploaded audio URL
+        const updatedMessage = {
+          ...message,
+          audioUrl: uploadedAudioUrl
+        };
+        
+        // Sync the updated message
+        const sentMessage = await MessageService.syncExistingMessage(updatedMessage);
+        await platformStorageService.saveMessage(sentMessage);
       } else {
         // Regular message sync
         const sentMessage = await MessageService.syncExistingMessage(message);
         await platformStorageService.saveMessage(sentMessage);
       }
       
-    } catch (error) {
+      console.log(`✅ Successfully synced message ${message.id}`);
+      
+    } catch (error: any) {
       console.error(`Error syncing message ${message.id}:`, error);
-      this.retryCount++;
+      
+      // Handle network/offline errors with retry logic
+      if (error.message?.includes('Network unavailable') || 
+          error.message?.includes('offline') || 
+          error.code === 'unavailable') {
+        console.log(`🔄 Message ${message.id} sync failed due to network, will retry later`);
+        this.retryCount++;
+        
+        // Don't mark as failed immediately for network errors
+        if (this.retryCount < this.maxRetries) {
+          console.log(`🔄 Retrying message ${message.id} (attempt ${this.retryCount + 1}/${this.maxRetries})`);
+          return; // Will be retried on next sync - don't throw error
+        }
+      }
+      
+      // Mark as failed if we've exceeded retry limit
+      if (this.retryCount >= this.maxRetries) {
+        console.error(`❌ Message ${message.id} failed after ${this.maxRetries} attempts`);
+        await platformStorageService.updateMessageStatus(message.id, 'failed');
+        return; // Don't throw error for failed messages either
+      }
+      
+      // Only throw error for unexpected errors
       throw error;
     }
   }

@@ -158,9 +158,11 @@ export default function SwipeableChatItem({
             styles.chatItem,
             showWebActions && styles.chatItemWithActions
           ]}
-          onMouseEnter={handleWebMouseEnter}
-          onMouseLeave={handleWebMouseLeave}
-          onContextMenu={handleWebRightClick}
+          {...(Platform.OS === 'web' ? {
+            onMouseEnter: handleWebMouseEnter,
+            onMouseLeave: handleWebMouseLeave,
+            onContextMenu: handleWebRightClick
+          } : {})}
         >
           <TouchableOpacity
             style={styles.chatContent}

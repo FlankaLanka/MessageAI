@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 
@@ -26,6 +26,42 @@ class AudioService {
     durationMillis: 0,
     progress: 0
   };
+
+  // Initialize audio service with proper routing
+  async initialize(): Promise<void> {
+    try {
+      // Set initial audio mode for playback through speakers
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        staysActiveInBackground: false,
+        playThroughEarpieceAndroid: false, // CRITICAL: Play through speakers, not earpiece
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+      });
+      console.log('🔊 Audio service initialized for speaker playback');
+    } catch (error) {
+      console.error('Error initializing audio service:', error);
+    }
+  }
+
+  // Ensure audio plays through speakers (call this before any playback)
+  async ensureSpeakerPlayback(): Promise<void> {
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        staysActiveInBackground: false,
+        playThroughEarpieceAndroid: false, // CRITICAL: Play through speakers, not earpiece
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+      });
+    } catch (error) {
+      console.error('Error setting speaker playback:', error);
+    }
+  }
 
   // Request microphone permissions
   async requestPermissions(): Promise<boolean> {
@@ -56,7 +92,9 @@ class AudioService {
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
         staysActiveInBackground: false,
-        playThroughEarpieceAndroid: false,
+        playThroughEarpieceAndroid: false, // Use speakers for recording feedback
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
       });
 
       // Create recording instance
@@ -118,6 +156,8 @@ class AudioService {
       this.recording = null;
       this.isRecording = false;
 
+      // Reset audio mode to default for playback
+      await this.ensureSpeakerPlayback();
 
       return {
         uri,
@@ -151,6 +191,9 @@ class AudioService {
       if (this.isPlaying) {
         await this.pauseAudio();
       }
+
+      // Ensure audio plays through speakers
+      await this.ensureSpeakerPlayback();
 
       const sound = new Audio.Sound();
       await sound.loadAsync({ uri });

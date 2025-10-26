@@ -1,5 +1,3 @@
-import OpenAI from 'openai';
-
 export interface TranscriptionResult {
   text: string;
   language?: string;
@@ -8,14 +6,9 @@ export interface TranscriptionResult {
 
 export class TranscriptionService {
   private static instance: TranscriptionService;
-  private openai: OpenAI;
   
   private constructor() {
-    const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OpenAI API key not found');
-    }
-    this.openai = new OpenAI({ apiKey });
+    // OpenAI client will be created when needed to avoid import issues
   }
   
   static getInstance(): TranscriptionService {
@@ -30,6 +23,7 @@ export class TranscriptionService {
    */
   async transcribeAudio(audioUri: string): Promise<TranscriptionResult> {
     try {
+      console.log('🎤 Starting transcription for audio:', audioUri);
       
       // Check if OpenAI API key is available
       const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
@@ -48,7 +42,7 @@ export class TranscriptionService {
       // Don't specify language parameter - let Whisper auto-detect
       formData.append('response_format', 'json');
 
-
+      console.log('🎤 Calling OpenAI Whisper API...');
       // Call OpenAI Whisper API
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
@@ -65,6 +59,7 @@ export class TranscriptionService {
       }
 
       const result = await response.json();
+      console.log('🎤 Transcription result:', result);
 
       return {
         text: result.text || '',
@@ -98,31 +93,63 @@ export class TranscriptionService {
   }
 
   /**
-   * Detect language from text using OpenAI
+   * Detect language from text using OpenAI API directly
    */
   private async detectLanguage(text: string): Promise<string> {
     try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a language detection expert. Given a text, return only the ISO 639-1 language code (e.g., "en", "es", "zh"). Return "unknown" if you cannot determine the language.'
-          },
-          {
-            role: 'user',
-            content: `Detect the language of this text: "${text}"`
-          }
-        ],
-        max_tokens: 10,
-        temperature: 0,
+      console.log('🌍 Detecting language for text:', text.substring(0, 50) + '...');
+      
+      const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+      if (!apiKey) {
+        console.log('🌍 No OpenAI API key, defaulting to English');
+        return 'en';
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a language detection expert. Given a text, return only the ISO 639-1 language code (e.g., "en", "es", "zh"). Return "en" if you cannot determine the language.'
+            },
+            {
+              role: 'user',
+              content: `Detect the language of this text: "${text}"`
+            }
+          ],
+          max_tokens: 10,
+          temperature: 0,
+        })
       });
 
-      const detectedLanguage = response.choices[0]?.message?.content?.trim().toLowerCase();
-      return detectedLanguage || 'unknown';
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🌍 Language detection API error:', response.status, errorText);
+        return 'en';
+      }
+
+      const result = await response.json();
+      const detectedLanguage = result.choices[0]?.message?.content?.trim().toLowerCase();
+      
+      console.log('🌍 Detected language:', detectedLanguage);
+      
+      // Validate the language code
+      const validLanguageCodes = ['en', 'es', 'fr', 'de', 'zh', 'ja', 'ko', 'ar', 'hi', 'pt', 'ru', 'it', 'nl', 'sv', 'da', 'no', 'fi', 'pl', 'tr', 'th', 'vi', 'id', 'ms', 'tl', 'uk', 'bg', 'hr', 'cs', 'sk', 'hu', 'ro', 'el', 'he', 'fa', 'ur', 'bn', 'ta', 'te', 'ml', 'kn', 'gu', 'pa', 'or', 'as', 'ne', 'si', 'my', 'km', 'lo', 'ka', 'am', 'sw', 'zu', 'af', 'sq', 'az', 'be', 'bs', 'ca', 'cy', 'et', 'eu', 'fo', 'gl', 'is', 'kk', 'ky', 'lv', 'lt', 'mk', 'mt', 'mn', 'sr', 'tg', 'tk', 'uz', 'vi', 'xh', 'yo', 'zu'];
+      
+      if (detectedLanguage && validLanguageCodes.includes(detectedLanguage)) {
+        return detectedLanguage;
+      }
+      
+      return 'en'; // Default to English
     } catch (error) {
-      console.error('Error detecting language:', error);
-      return 'unknown';
+      console.error('🌍 Error detecting language:', error);
+      return 'en'; // Default to English on error
     }
   }
 

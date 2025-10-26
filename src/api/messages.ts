@@ -147,6 +147,7 @@ export class MessageService {
             id: doc.id,
             ...data,
             timestamp: safeToMillis(data.timestamp),
+            isOptimistic: false, // Messages from Firebase are never optimistic
           } as Message);
         });
 
@@ -204,6 +205,7 @@ export class MessageService {
             id: doc.id,
             ...data,
             timestamp: safeToMillis(data.timestamp),
+            isOptimistic: false, // Messages from Firebase are never optimistic
           } as Message;
           messages.push(message);
         });
@@ -317,10 +319,9 @@ export class MessageService {
   // Sync an existing message (for offline sync)
   static async syncExistingMessage(message: Message): Promise<Message> {
     try {
-      if (!networkService.isOnline()) {
-        throw new Error('Cannot sync message while offline');
-      }
-
+      // More robust network check - try the operation and handle offline errors
+      console.log('🔄 Syncing message:', message.id, 'Network state:', networkService.getCurrentState());
+      
       // Check if message already exists in Firestore
       const messageRef = doc(firestore, 'messages', message.chatId, 'threads', message.id);
       const messageSnap = await getDoc(messageRef);
@@ -378,8 +379,25 @@ export class MessageService {
         
         return sentMessage;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error syncing existing message:', error);
+      
+      // Handle specific Firebase offline errors
+      if (error.code === 'unavailable' || error.message?.includes('offline') || error.message?.includes('Failed to get document because the client is offline')) {
+        console.log('🔄 Message sync failed due to offline state, will retry later');
+        // Don't throw error for network issues - let sync service handle retries
+        return {
+          ...message,
+          status: 'sending' // Keep as sending for retry
+        };
+      }
+      
+      // Handle other Firebase errors
+      if (error.code) {
+        console.error('Firebase error during sync:', error.code, error.message);
+        throw new Error(`Sync failed: ${error.message}`);
+      }
+      
       throw error;
     }
   }
@@ -489,6 +507,23 @@ export class MessageService {
       await syncService.deleteChatFromCache(chatId);
       console.log('🗑️ Chat deleted from local cache');
 
+      // Clear from Zustand store
+      const { useStore } = await import('../store/useStore');
+      const store = useStore.getState();
+      store.removeChat(chatId);
+      store.clearMessages(chatId);
+      console.log('🗑️ Chat cleared from Zustand store');
+
+      // Clear Supabase vector embeddings for this chat
+      try {
+        const { supabaseVectorService } = await import('./supabaseVector');
+        await supabaseVectorService.clearConversationContext(chatId);
+        console.log('🗑️ Chat embeddings cleared from Supabase');
+      } catch (error) {
+        console.warn('Failed to clear Supabase embeddings:', error);
+        // Don't fail the entire deletion for this
+      }
+
       console.log('✅ Chat deletion completed successfully');
 
     } catch (error) {
@@ -588,8 +623,10 @@ export class MessageService {
       }
 
       // Online: Upload image file to Firebase Storage first
+      // Generate a proper message ID for the storage path (not the optimistic ID)
+      const storageMessageId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const { MediaService } = await import('./media');
-      const imageUrl = await MediaService.uploadChatImage(chatId, optimisticMessage.id, imageUri);
+      const imageUrl = await MediaService.uploadChatImage(chatId, storageMessageId, imageUri);
       
       // Update message with Firebase Storage URL
       const messageData: any = {
